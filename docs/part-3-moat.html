@@ -11,15 +11,13 @@ th{background:#fafafa} blockquote{border-left:4px solid #ddd;margin:1em 0;paddin
 video{max-width:100%;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.14);margin:.4em 0}
 .gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin:1.2em 0}
 .gallery figure{margin:0} .gallery figcaption{font-size:.82em;color:#777;margin-top:4px}
-.site-nav{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin:0 0 2em;padding-bottom:14px;border-bottom:1px solid #eee}
-.site-nav .brand{font-weight:700;color:#111;text-decoration:none;font-size:1.06em;margin-right:auto}
-.navlinks{display:flex;flex-wrap:wrap;gap:8px}
-.nav-item{display:flex;flex-direction:column;line-height:1.15;text-decoration:none;color:#06c;padding:6px 12px;border:1px solid #e7e7e7;border-radius:10px;background:#fafafa;transition:all .12s}
-.nav-item span{font-size:.72em;color:#9a9a9a;font-weight:400}
-.nav-item:hover{border-color:#06c;background:#f0f7ff}
-.nav-item.active{background:#111;border-color:#111;color:#fff;pointer-events:none}
-.nav-item.active span{color:#bbb}</style>
-<header class="site-nav"><a class="brand" href="agentic-studio-series.html">🎬 The Agentic Studio</a><nav class="navlinks"><a class="nav-item" href="agentic-studio-series.html"><b>Series</b><span>Overview</span></a><a class="nav-item" href="part-1-thesis.html"><b>Part 1</b><span>Thesis</span></a><a class="nav-item" href="pre-production-barrier.html"><b>Part 2</b><span>Architecture</span></a><a class="nav-item active" href="#"><b>Part 3</b><span>Moat</span></a><a class="nav-item" href="index.html"><b>Foundations</b><span>MCP & Skills</span></a></nav></header>
+.site-nav{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 2em;padding-bottom:12px;border-bottom:1px solid #eee}
+.site-nav .brand{font-weight:700;color:#111;text-decoration:none;font-size:1.05em;margin-right:auto}
+.navlinks{display:flex;flex-wrap:wrap;gap:6px}
+.nav-item{text-decoration:none;color:#06c;padding:5px 12px;border-radius:999px;font-size:.92em;white-space:nowrap;transition:background .12s}
+.nav-item:hover{background:#eef5ff}
+.nav-item.active{background:#06c;color:#fff;pointer-events:none}</style>
+<header class="site-nav"><a class="brand" href="agentic-studio-series.html">🎬 The Agentic Studio</a><nav class="navlinks"><a class="nav-item" href="agentic-studio-series.html" title="Overview">Series</a><a class="nav-item" href="part-1-thesis.html" title="Thesis">Part 1</a><a class="nav-item" href="pre-production-barrier.html" title="Architecture">Part 2</a><a class="nav-item active" href="#" title="Moat">Part 3</a><a class="nav-item" href="index.html" title="MCP & Skills">Foundations</a></nav></header>
 <h1>Part 3 · Consistency Is the Product</h1>
 <p><em>Part 3 of </em><em><a href="agentic-studio-series.html">The Agentic Studio</a></em><em>. Anyone can generate a clip. The moat
 is making a thousand clips that agree — on a face, a set, a light, a line of action — and doing it
@@ -42,6 +40,14 @@ inconsistency <em>more</em> obvious, not less.</p>
 <p><em>What "the product" looks like: three framings of one scene where identity, continuity, and the world
 all hold. No single render gives you this — it's the invariants below, enforced together.</em></p>
 <h2>Invariant 1 — Identity across shots</h2>
+<p>The identity anchors from <strong><em>The Choice</em></strong> — one canonical reference sheet per character, re-fed into
+every shot so the same face/wardrobe survives the whole film:</p>
+<div class="gallery">
+<figure><img src="media/choice-arthur.png" alt="Arthur reference sheet"><figcaption>Arthur</figcaption></figure>
+<figure><img src="media/choice-martha.png" alt="Martha reference sheet"><figcaption>Martha</figcaption></figure>
+<figure><img src="media/choice-buddy.png" alt="Buddy reference sheet"><figcaption>Buddy</figcaption></figure>
+</div>
+
 <p><strong>The problem.</strong> The same character must read as one person across dozens of shots, at different
 angles, distances, and lighting, when every render is an independent stochastic draw. Prompt the same
 description twice and you get two different people — imagine a film where the lead is quietly recast
@@ -59,6 +65,13 @@ character"; the reference is what makes the score mean something.</p>
 <p><em>The reference sheet is both the input to every render and the yardstick the critic judges it by.
 "Does this look like her?" only has an answer because there is a canonical </em>her<em> to compare to.</em></p>
 <h2>Invariant 2 — Continuity across scenes</h2>
+<p>The same cast, consistent across different scenes of <strong><em>The Choice</em></strong> — same identities, look and
+world, scene to scene:</p>
+<div class="gallery">
+<figure><video controls preload="metadata" src="media/choice-scene-2.mp4"></video><figcaption>Scene 2</figcaption></figure>
+<figure><video controls preload="metadata" src="media/choice-scene-3.mp4"></video><figcaption>Scene 3</figcaption></figure>
+</div>
+
 <p><strong>The problem.</strong> Screen direction, eyelines, the 180° line, lens family, and shot-to-shot angle
 deltas must hold across cuts, or the audience feels the space break even if every individual frame is
 beautiful. These are the famous blooper-reel gaffes — the coffee cup that appears mid-scene, the

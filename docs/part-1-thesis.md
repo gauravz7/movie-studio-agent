@@ -7,6 +7,18 @@ layer is an agent, and why it is buildable now.*
 
 ---
 
+## Reference example — *The Choice*
+
+Everything in this series is grounded in one real short — ***The Choice***, a 4-scene photorealistic
+film the studio produced end-to-end. A finished scene, and the style anchor every shot inherits:
+
+<div class="gallery">
+<figure><video controls preload="metadata" src="media/choice-scene-1.mp4"></video><figcaption>A finished scene — orchestration, not a single render</figcaption></figure>
+<figure><img src="media/choice-style.jpg" alt="style reference"><figcaption>The style anchor every shot inherits</figcaption></figure>
+</div>
+
+---
+
 ## The category error
 
 Every "AI video" launch is a better **render function**: `prompt → asset`. One call, one output, no

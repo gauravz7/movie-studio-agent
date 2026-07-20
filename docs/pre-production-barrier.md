@@ -357,6 +357,15 @@ Three things this picture makes obvious that the prose can't:
 Abstract enough. Here are real artifacts from a single run, in pipeline order — the same
 barrier-then-fan-out you just read, rendered.
 
+From ***The Choice*** — the three stages of the pipeline, in one row: the barrier's people-free set
+plate, the per-scene fan-out (a 3-panel micro-shot), and the join (the animated scene):
+
+<div class="gallery">
+<figure><img src="media/choice-plate-s1.jpg" alt="set plate"><figcaption>Barrier → people-free set plate</figcaption></figure>
+<figure><img src="media/choice-storyboard-s1.png" alt="3-panel micro-shot"><figcaption>Fan-out → 3-panel micro-shot</figcaption></figure>
+<figure><video controls preload="metadata" src="media/choice-scene-1.mp4"></video><figcaption>Join → the animated scene</figcaption></figure>
+</div>
+
 **1. The style anchor** (`generate_style_ref`) — one image that fixes the world's look: palette,
 light, texture. Everything downstream is composed to match it.
 

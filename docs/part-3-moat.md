@@ -28,6 +28,15 @@ all hold. No single render gives you this — it's the invariants below, enforce
 
 ## Invariant 1 — Identity across shots
 
+The identity anchors from ***The Choice*** — one canonical reference sheet per character, re-fed into
+every shot so the same face/wardrobe survives the whole film:
+
+<div class="gallery">
+<figure><img src="media/choice-arthur.png" alt="Arthur reference sheet"><figcaption>Arthur</figcaption></figure>
+<figure><img src="media/choice-martha.png" alt="Martha reference sheet"><figcaption>Martha</figcaption></figure>
+<figure><img src="media/choice-buddy.png" alt="Buddy reference sheet"><figcaption>Buddy</figcaption></figure>
+</div>
+
 **The problem.** The same character must read as one person across dozens of shots, at different
 angles, distances, and lighting, when every render is an independent stochastic draw. Prompt the same
 description twice and you get two different people — imagine a film where the lead is quietly recast
@@ -50,6 +59,14 @@ character"; the reference is what makes the score mean something.
 "Does this look like her?" only has an answer because there is a canonical *her* to compare to.*
 
 ## Invariant 2 — Continuity across scenes
+
+The same cast, consistent across different scenes of ***The Choice*** — same identities, look and
+world, scene to scene:
+
+<div class="gallery">
+<figure><video controls preload="metadata" src="media/choice-scene-2.mp4"></video><figcaption>Scene 2</figcaption></figure>
+<figure><video controls preload="metadata" src="media/choice-scene-3.mp4"></video><figcaption>Scene 3</figcaption></figure>
+</div>
 
 **The problem.** Screen direction, eyelines, the 180° line, lens family, and shot-to-shot angle
 deltas must hold across cuts, or the audience feels the space break even if every individual frame is

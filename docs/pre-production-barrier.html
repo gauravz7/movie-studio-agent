@@ -11,15 +11,13 @@ th{background:#fafafa} blockquote{border-left:4px solid #ddd;margin:1em 0;paddin
 video{max-width:100%;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.14);margin:.4em 0}
 .gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin:1.2em 0}
 .gallery figure{margin:0} .gallery figcaption{font-size:.82em;color:#777;margin-top:4px}
-.site-nav{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin:0 0 2em;padding-bottom:14px;border-bottom:1px solid #eee}
-.site-nav .brand{font-weight:700;color:#111;text-decoration:none;font-size:1.06em;margin-right:auto}
-.navlinks{display:flex;flex-wrap:wrap;gap:8px}
-.nav-item{display:flex;flex-direction:column;line-height:1.15;text-decoration:none;color:#06c;padding:6px 12px;border:1px solid #e7e7e7;border-radius:10px;background:#fafafa;transition:all .12s}
-.nav-item span{font-size:.72em;color:#9a9a9a;font-weight:400}
-.nav-item:hover{border-color:#06c;background:#f0f7ff}
-.nav-item.active{background:#111;border-color:#111;color:#fff;pointer-events:none}
-.nav-item.active span{color:#bbb}</style>
-<header class="site-nav"><a class="brand" href="agentic-studio-series.html">🎬 The Agentic Studio</a><nav class="navlinks"><a class="nav-item" href="agentic-studio-series.html"><b>Series</b><span>Overview</span></a><a class="nav-item" href="part-1-thesis.html"><b>Part 1</b><span>Thesis</span></a><a class="nav-item active" href="#"><b>Part 2</b><span>Architecture</span></a><a class="nav-item" href="part-3-moat.html"><b>Part 3</b><span>Moat</span></a><a class="nav-item" href="index.html"><b>Foundations</b><span>MCP & Skills</span></a></nav></header>
+.site-nav{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 2em;padding-bottom:12px;border-bottom:1px solid #eee}
+.site-nav .brand{font-weight:700;color:#111;text-decoration:none;font-size:1.05em;margin-right:auto}
+.navlinks{display:flex;flex-wrap:wrap;gap:6px}
+.nav-item{text-decoration:none;color:#06c;padding:5px 12px;border-radius:999px;font-size:.92em;white-space:nowrap;transition:background .12s}
+.nav-item:hover{background:#eef5ff}
+.nav-item.active{background:#06c;color:#fff;pointer-events:none}</style>
+<header class="site-nav"><a class="brand" href="agentic-studio-series.html">🎬 The Agentic Studio</a><nav class="navlinks"><a class="nav-item" href="agentic-studio-series.html" title="Overview">Series</a><a class="nav-item" href="part-1-thesis.html" title="Thesis">Part 1</a><a class="nav-item active" href="#" title="Architecture">Part 2</a><a class="nav-item" href="part-3-moat.html" title="Moat">Part 3</a><a class="nav-item" href="index.html" title="MCP & Skills">Foundations</a></nav></header>
 <h1>Part 2 · Barrier, Fan-out, Join — the architecture of a creative agent</h1>
 <p><em>Part 2 of </em><em><a href="agentic-studio-series.html">The Agentic Studio</a></em><em>. The studio is a scheduler over
 stochastic renders; this is how the scheduler is built. One decision dominates the design, and it
@@ -397,6 +395,14 @@ sequenceDiagram
 <h2>What the pipeline actually produces</h2>
 <p>Abstract enough. Here are real artifacts from a single run, in pipeline order — the same
 barrier-then-fan-out you just read, rendered.</p>
+<p>From <strong><em>The Choice</em></strong> — the three stages of the pipeline, in one row: the barrier's people-free set
+plate, the per-scene fan-out (a 3-panel micro-shot), and the join (the animated scene):</p>
+<div class="gallery">
+<figure><img src="media/choice-plate-s1.jpg" alt="set plate"><figcaption>Barrier → people-free set plate</figcaption></figure>
+<figure><img src="media/choice-storyboard-s1.png" alt="3-panel micro-shot"><figcaption>Fan-out → 3-panel micro-shot</figcaption></figure>
+<figure><video controls preload="metadata" src="media/choice-scene-1.mp4"></video><figcaption>Join → the animated scene</figcaption></figure>
+</div>
+
 <p><strong>1. The style anchor</strong> (<code>generate_style_ref</code>) — one image that fixes the world's look: palette,
 light, texture. Everything downstream is composed to match it.</p>
 <p><img alt="The style reference: a warm, lamp-lit living room at night, establishing the film's overall look" src="images/studio-style-ref.jpg" /></p>

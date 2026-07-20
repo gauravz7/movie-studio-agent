@@ -1,0 +1,431 @@
+<!doctype html><meta charset=utf-8>
+<title>Barrier, Fan-out, Join — The Agentic Studio</title><style>
+body{max-width:740px;margin:40px auto;font:17px/1.6 -apple-system,Segoe UI,Roboto,Helvetica,Arial;color:#222;padding:0 16px}
+h1{font-size:2em;line-height:1.2} h2{margin-top:1.6em;border-bottom:1px solid #eee;padding-bottom:.2em}
+h3{margin-top:1.3em} hr{border:none;border-top:2px solid #eee;margin:2.5em 0}
+code{background:#f4f4f4;padding:2px 5px;border-radius:4px;font-size:.9em}
+pre{background:#f6f8fa;padding:14px;border-radius:8px;overflow:auto} pre code{background:none;padding:0}
+pre.mermaid{background:#fff;text-align:center}
+table{border-collapse:collapse;width:100%;margin:1em 0} th,td{border:1px solid #ddd;padding:8px 10px;text-align:left;font-size:.92em}
+th{background:#fafafa} blockquote{border-left:4px solid #ddd;margin:1em 0;padding:.2em 1em;color:#555} img{max-width:100%}
+nav.posts{font-size:.9em;color:#666;margin-bottom:1.5em} nav.posts a{color:#06c;text-decoration:none}</style>
+<nav class="posts">The Agentic Studio: <a href="agentic-studio-series.html">Series</a> &middot; <a href="part-1-thesis.html">Part 1 · Thesis</a> &middot; <strong>Part 2 · Architecture</strong> &middot; <a href="part-3-moat.html">Part 3 · Moat</a> &middot; <a href="index.html">Foundations · MCP & Skills</a></nav>
+<h1>Part 2 · Barrier, Fan-out, Join — the architecture of a creative agent</h1>
+<p><em>Part 2 of </em><em><a href="agentic-studio-series.html">The Agentic Studio</a></em><em>. The studio is a scheduler over
+stochastic renders; this is how the scheduler is built. One decision dominates the design, and it
+happens </em><em>before any GPU-second is spent</em><em>: a short, strictly ordered barrier — treatment, look,
+cast — that every downstream branch conditions on. Lock it and N scenes fan out in parallel, cheaply
+and safely. Skip it and you pay for the same inconsistency N times over. The pipeline is a real MCP
+server; every claim below is a mechanism, not a metaphor.</em></p>
+<hr />
+<h1>The five-minute version (for architects)</h1>
+<h2>The one idea</h2>
+<blockquote>
+<p><strong>In an agent system, the expensive failures come from fanning out before you've locked the
+context every branch shares. The job of the architect is to find that shared context, produce it
+as a few cheap artifacts in a fixed order, gate it — and only then parallelize.</strong></p>
+</blockquote>
+<p>A film crew figured this out a century ago. Nobody shoots a single frame until the script is locked,
+the look is set, and the cast is fixed. That "pre-production" phase is cheap (it's mostly talk and a
+few reference images) and it is <strong>sequential on purpose</strong>. Principal photography — the expensive part
+— only begins once those decisions can no longer move underneath everyone.</p>
+<p>That is exactly the shape of a well-built agent pipeline. And most teams get it backwards: they
+parallelize the expensive generative calls first because that's where the latency is, then spend
+their real budget re-doing work because each parallel branch made a different assumption about the
+shared context.</p>
+<h2>The shape</h2>
+<pre><code>PRE-PRODUCTION  (sequential barrier — cheap, gated)
+   idea → treatment → style anchor → full cast
+                 │  everything below conditions on these
+                 ▼
+PHOTOGRAPHY     (fan-out — expensive, parallel, independent)
+   scene 1 ┐
+   scene 2 ├─ establish → plan → validate → render → QC   (all at once)
+   scene 3 ┘
+                 │
+                 ▼
+POST            (sequential join)
+   assemble → (video, score)
+</code></pre>
+<p>Three phases, and the boundaries aren't arbitrary — the film schedule tells you exactly where they
+go. Pre-production is a <strong>barrier</strong>: nothing downstream may start until it's done. Photography is a
+<strong>fan-out</strong>: once the look and cast are locked, scenes are independent and render concurrently (a
+"second unit"). Post is a <strong>join</strong>.</p>
+<h2>Why the barrier is load-bearing (the cost math)</h2>
+<p>The barrier is a handful of <em>cheap</em> artifacts. A treatment is text. A style anchor is one image. A
+cast is a few reference images. Call it single-digit dollars and a few seconds.</p>
+<p>The fan-out is where the money is: every scene, every shot, every re-render, every QC pass, times N
+scenes running in parallel. That's where 95% of the cost and latency live.</p>
+<p>Here's the leverage. <strong>A defect introduced in the barrier is multiplied by the entire fan-out.</strong> If
+the style anchor is inconsistent, every one of the N parallel scenes inherits a look that doesn't
+match — and you re-render all N. If a character's reference sheet is ambiguous, every shot that
+character appears in comes back wrong. The cheapest artifact in the system is also the one with the
+largest blast radius.</p>
+<p>So the rule writes itself:</p>
+<blockquote>
+<p><strong>Spend your reliability budget on the cheap, sequential, upstream artifacts — because they are
+the ones the expensive parallel work multiplies.</strong></p>
+</blockquote>
+<p>This is why pre-production is gated with a human approval (or a validator) and photography is not.
+You stop and confirm the four things that everything depends on. After that, you let it run.</p>
+<h2>What generalizes beyond film</h2>
+<p>This isn't about movies. Any agent workflow that fans out has a pre-production barrier hiding in it:</p>
+<ul>
+<li><strong>A coding agent</strong> refactoring 40 files: the barrier is the plan + the shared conventions +
+  the target API. Lock those, then edit files in parallel. Skip the barrier and you get 40 files
+  that each invented their own version of the interface.</li>
+<li><strong>A research agent</strong> writing a report: the barrier is the question decomposition + the source
+  list + the claim schema. Then fan out the reads.</li>
+<li><strong>A data pipeline agent</strong>: the barrier is the schema + the validation rules. Then process
+  partitions in parallel.</li>
+</ul>
+<p>The discipline is identical: <strong>find the shared context, produce it cheaply and in order, gate it,
+then parallelize.</strong> If you can't name your barrier, you don't have an architecture — you have a
+prompt and some hope.</p>
+<hr />
+<h1>The field report (for builders)</h1>
+<p>Everything below is real code from the pipeline. Two servers, one of them (<code>movie-mcp</code>) a
+multi-module film-production app. The bible — a per-user, per-project JSON document — is the source
+of truth; each stage reads the previous stage's artifact from it, never from chat history. That
+detail matters: <strong>the handoff artifact, not the conversation, is the interface between stages.</strong></p>
+<h2>The crew → code mapping</h2>
+<p>Model the roles, and the agents, artifacts, and guardrails fall out of the org chart:</p>
+<table>
+<thead>
+<tr>
+<th>Film role</th>
+<th>Owns</th>
+<th>Code</th>
+<th>Artifact produced</th>
+<th>Guardrail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Screenwriter</td>
+<td>idea → script</td>
+<td><code>script-developer</code> skill (text only, cheap)</td>
+<td><code>Treatment{logline, scenes[], cast[]}</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>Production designer</td>
+<td>the "look"</td>
+<td><code>generate_style_ref</code> + <code>establish_scene</code></td>
+<td><code>StyleRef</code>, <code>ScenePlate</code></td>
+<td>style anchor</td>
+</tr>
+<tr>
+<td>Casting / char design</td>
+<td>identity consistency</td>
+<td><code>add_character</code></td>
+<td><code>CharacterSheet{ref_uri}</code></td>
+<td>QC vs refs</td>
+</tr>
+<tr>
+<td>Director</td>
+<td>blocking, shot choice</td>
+<td><code>film-director</code> skill</td>
+<td><code>ShotPlan</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>Cinematographer</td>
+<td>lens, framing, light</td>
+<td>prompt fields + lens rule</td>
+<td>shot params</td>
+<td><code>film_grammar</code> R19</td>
+</tr>
+<tr>
+<td><strong>Script supervisor</strong></td>
+<td>eyelines, 180° line</td>
+<td><strong><code>film_grammar.validate_plan</code></strong></td>
+<td>violations</td>
+<td>R1/R3/R4/R7/R14</td>
+</tr>
+<tr>
+<td>Editor / QC</td>
+<td>dailies, reshoots</td>
+<td><code>film-editor</code> skill + <code>review_image</code></td>
+<td><code>Dailies{qc_score, issues}</code></td>
+<td>critic + <code>QC_MAX_TRIES</code></td>
+</tr>
+<tr>
+<td>Composer</td>
+<td>score</td>
+<td><code>musicgen</code></td>
+<td>audio</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p><em>Those rule codes in plain English:</em> the <strong>180° line</strong> (R1) keeps the camera on one side of the
+imaginary line between two characters so they don't swap sides on a cut; an <strong>eyeline match</strong> (R3)
+makes sure that when A looks at B, the next shot frames B from the direction A was looking;
+<strong>establish-first</strong> (R7) means you show the room before you cut into close-ups of it; the <strong>30° rule</strong>
+(R4) avoids a jarring "jump cut" by moving the camera at least 30° between two shots of the same
+subject. Each is something a human script supervisor watches for on set — and each reduces to an
+arithmetic check on the shot-plan numbers, which is the whole reason <code>film_grammar</code> can enforce them.</p>
+<p>Two of these mappings carry the whole design:</p>
+<ul>
+<li>The <strong>script supervisor is deterministic code.</strong> Continuity is <em>rules</em>, not taste. The 180° line,
+  eyeline match, the 30° jump-cut rule, establish-first — these are checkable. <code>film_grammar</code> is
+  pure logic, no I/O, and <code>plan_scene</code> <strong>persists shots only if there are zero <code>error</code>-severity
+  violations.</strong> A cheap deterministic gate before you ever spend a render.</li>
+<li>The <strong>editor is an LLM critic loop.</strong> "Does this character look like the reference? Is the sky's
+  light matching the ground's?" is <em>judgment</em>. <code>review_image</code> scores per dimension against the
+  reference sheets, and on failure the pipeline <strong>regenerates with the critic's <code>issues</code> fed back
+  into the prompt</strong>, up to <code>QC_MAX_TRIES</code> (default 2) — like a shoot with a limited number of takes.</li>
+</ul>
+<p>That split — <strong>deterministic gate for rules, LLM critic for judgment</strong> — is the reliability backbone.
+Don't use a model for what a rule can check; don't use a rule for what needs taste.</p>
+<h2>The barrier in code</h2>
+<p>The line producer's call sheet is <em>logistics</em>, not creativity. So the <strong>order</strong> is plain code; the
+<strong>craft</strong> inside each step is an LLM agent with a skill. Pseudocode of the real pipeline:</p>
+<pre><code class="language-python"># PRE-PRODUCTION — sequential barrier. No LLM decides the ORDER.
+treatment = await screenwriter(idea)                    # text, cheap
+style     = await production_designer(treatment.style)  # ONE anchor — global look
+cast      = await parallel(add_character(c) for c in treatment.cast)
+#           ^ characters are independent of each other, but ALL of them gate photography
+
+# ---- BARRIER ----  (human approval in INTERACTIVE mode; validator otherwise)
+
+# PHOTOGRAPHY — fan-out. Scenes are independent now that look + cast are locked.
+async def shoot(scene):
+    plate = await establish_scene(scene, style)         # persistent, people-free set plate
+    plan  = await director(scene, cast)                 # CRAFT: judgment
+    errs  = film_grammar.validate_plan(plan)            # CONTINUITY: deterministic gate
+    if errs:
+        plan = await director.fix(plan, errs)           # re-block, don't reshoot
+    return await render_with_qc(plan, refs=[style, *cast])   # EDITOR: critic loop
+
+dailies = await parallel(shoot(s) for s in treatment.scenes)  # second unit
+</code></pre>
+<p>Note what's sequential and what's parallel. Casting fans out <em>within</em> the barrier (characters don't
+depend on each other) but the barrier as a whole still blocks photography (every scene needs the
+whole cast + the look). Scenes fan out <em>after</em> the barrier because they're genuinely independent.
+The concurrency graph isn't a guess — it's the dependency structure of the artifacts.</p>
+<h2>How the skills and MCP tools are actually called</h2>
+<p>The pseudocode above hides the two things doing the work: <code>screenwriter()</code> and <code>director()</code> are not
+functions — they're the <strong>LLM following a Skill</strong>, and <code>plan_scene</code>/<code>generate_shot</code> are <strong>MCP tool
+calls over the wire.</strong> These are two completely different mechanisms, and understanding the
+difference is the difference between a demo and a system.</p>
+<p>One ADK agent registers <strong>both</strong> as tools:</p>
+<pre><code class="language-python">from google.adk.skills import load_skill_from_dir
+from google.adk.tools import skill_toolset
+from google.adk.tools.mcp_tool import McpToolset, StreamableHTTPConnectionParams
+
+skills     = [load_skill_from_dir(SKILLS / n)            # know-how, in-process
+              for n in (&quot;script-developer&quot;, &quot;film-director&quot;, &quot;film-editor&quot;)]
+movie_tools = McpToolset(connection_params=StreamableHTTPConnectionParams(
+                 url=MCP_URL, timeout=180.0))            # capability, over HTTP
+
+root_agent = Agent(name=&quot;movie_director&quot;, model=&quot;gemini-3.5-flash&quot;,
+                   tools=[skill_toolset.SkillToolset(skills=skills), movie_tools])
+</code></pre>
+<ul>
+<li>A <strong>Skill loads into the agent's own runtime</strong> — no network. It's <em>know-how</em>: the director's
+  decision procedure, the continuity rules, the shot patterns. It's delivered by <strong>progressive
+  disclosure</strong> so it doesn't sit in context all the time: <strong>L1</strong> (name + description) is always
+  resident so the model knows the skill exists; <strong>L2</strong> (the <code>SKILL.md</code> body) loads only when the
+  task triggers it; <strong>L3</strong> (bulky reference files like <code>references/continuity-rules.md</code>) loads only
+  when the workflow actually reaches for it.</li>
+<li>An <strong>MCP tool call goes over Streamable HTTP</strong> to a separate process — the credentialed
+  <em>capability</em>. The agent negotiates the connection once (<code>initialize</code> → <code>tools/list</code>), then each
+  call is a <code>tools/call</code>. The 180s timeout is deliberate: image gen is ~12s and video is minutes,
+  well past ADK's 5s default.</li>
+</ul>
+<p>Here's a single scene flowing through both, end to end:</p>
+<pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant H as Agent (Gemini LLM)
+    participant SK as Skills runtime&lt;br/&gt;(SkillToolset, in-agent)
+    participant S as movie-mcp&lt;br/&gt;(over Streamable HTTP)
+    participant G as film_grammar&lt;br/&gt;(deterministic)
+    participant NB as nano-banana&lt;br/&gt;(Vertex AI)
+    participant B as Bible&lt;br/&gt;(per-user JSON)
+
+    rect rgb(244,247,252)
+    Note over H,S: Wire-up once — MCP handshake; Skills L1 metadata resident
+    H-&gt;&gt;S: initialize + tools/list
+    S--&gt;&gt;H: tool schemas (plan_scene, generate_shot, …)
+    Note over H,SK: L1: skill names/descriptions already in context
+    end
+
+    U-&gt;&gt;H: &quot;Shoot scene 3 — the kid looks up at the galaxy&quot;
+
+    rect rgb(245,244,252)
+    Note over H,SK: KNOW-HOW loads in-process (no network) — progressive disclosure
+    H-&gt;&gt;SK: load_skill film-director [L2 workflow]
+    SK--&gt;&gt;H: decision procedure (coverage, camera, anchors)
+    opt rules needed
+        H-&gt;&gt;SK: load_skill_resource continuity-rules.md [L3]
+        SK--&gt;&gt;H: [ENFORCED] rule list (R1/R3/R4/R7/R14/R19)
+    end
+    Note over H: LLM emits a ShotPlan JSON per the skill
+    end
+
+    rect rgb(244,252,244)
+    Note over H,B: CAPABILITY over the wire — validated, then rendered
+    H-&gt;&gt;S: tools/call plan_scene(ShotPlan)
+    S-&gt;&gt;G: validate_plan(plan)
+    alt zero error-severity violations
+        G--&gt;&gt;S: [] (warns allowed)
+        S-&gt;&gt;B: persist shots
+        S--&gt;&gt;H: {scene_id, shots}
+        H-&gt;&gt;S: tools/call generate_shot(scene_id, shot_id)
+        S-&gt;&gt;NB: compose from style plate + character refs
+        NB--&gt;&gt;S: PNG bytes
+        S-&gt;&gt;B: save + qc_ok/qc_score
+        S--&gt;&gt;H: resource_uri movie://… (a link, NOT bytes)
+    else has error violations
+        G--&gt;&gt;S: [R1 line cross, R3 eyeline, …]
+        S--&gt;&gt;H: rejected + violations
+        Note over H: re-block via skill, resend — no frame was rendered
+    end
+    end
+
+    H-&gt;&gt;S: resources/read movie://… (bytes on demand only)
+    S--&gt;&gt;H: PNG bytes
+    H--&gt;&gt;U: &quot;Scene 3 keyframe: movie://…&quot;
+
+</pre>
+<p>Read the diagram as three bands. The <strong>blue</strong> band happens once — the MCP handshake, and Skill L1
+metadata that's always resident. The <strong>purple</strong> band is know-how loading <em>inside the agent</em> with no
+network hop (L2, then L3 only if the rules are needed). The <strong>green</strong> band is the capability going
+<em>over the wire</em> — and notice the deterministic gate sits <strong>inside the server</strong>, before any pixels:
+<code>plan_scene</code> calls <code>film_grammar.validate_plan</code> and only a clean plan gets persisted and rendered. A
+plan with an error-severity violation bounces back with the reasons, the agent re-blocks via the
+skill, and <strong>no render was spent.</strong> Finally, bytes cross the wire only on the explicit
+<code>resources/read</code> — the link-not-bytes rule the whole economics depends on.</p>
+<p>The one sentence to keep: <strong>Skills answer "how should I do this?" in the agent's head; MCP answers
+"do this for me" in another process.</strong> They compose in a single agent, and the barrier from Part 1
+is just this sequence run first for the treatment, look, and cast — the artifacts every later run of
+this same sequence conditions on.</p>
+<h2>The barrier, then the fan-out — the whole pipeline in one picture</h2>
+<p>Zoom out from the single scene. The pipeline is the <em>same</em> skill+MCP sequence run several times: a
+few times <strong>in series</strong> to build the barrier (the shared artifacts), then N times <strong>in parallel</strong>
+once the barrier is locked. The <code>par</code> band below is where the money is spent — and it's only safe to
+run in parallel <em>because</em> everything above the barrier line already agreed on the look and the cast.</p>
+<pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant H as Agent (Gemini LLM)
+    participant SK as Skills runtime
+    participant S as movie-mcp
+    participant G as film_grammar
+    participant NB as nano-banana
+    participant B as Bible
+
+    U-&gt;&gt;H: &quot;Galaxy over a remote town — a kid who wants the stars&quot;
+
+    rect rgb(245,244,252)
+    Note over H,B: PRE-PRODUCTION — sequential barrier (cheap: text + a few anchors)
+    H-&gt;&gt;SK: load_skill(&quot;script-developer&quot;)
+    SK--&gt;&gt;H: clarify + treatment procedure
+    Note over H: LLM emits Treatment{logline, scenes[], cast[]}
+    H-&gt;&gt;S: create_project
+    S-&gt;&gt;B: write bible → project_id
+    H-&gt;&gt;S: generate_style_ref
+    S-&gt;&gt;NB: ONE global look anchor (town night + galaxy palette)
+    NB--&gt;&gt;S: PNG
+    S-&gt;&gt;B: StyleRef
+    loop each character in cast
+        H-&gt;&gt;S: add_character
+        S-&gt;&gt;NB: reference sheet
+        S-&gt;&gt;B: CharacterSheet{ref_uri} (+ QC)
+    end
+    end
+
+    Note over H,B: ── BARRIER ── approve look + cast (INTERACTIVE) / validate (AUTO)
+
+    rect rgb(244,252,244)
+    Note over H,B: PHOTOGRAPHY — fan-out; scenes independent now (second unit)
+    par scene 1
+        H-&gt;&gt;S: establish_scene → plan_scene
+        S-&gt;&gt;G: validate_plan
+        G--&gt;&gt;S: [] ok
+        S-&gt;&gt;NB: generate_shot (from plate + refs)
+        S-&gt;&gt;B: shot + resource_uri
+    and scene 2
+        H-&gt;&gt;S: establish_scene → plan_scene
+        S-&gt;&gt;G: validate_plan
+        G--&gt;&gt;S: [R3 eyeline] ← gaze-to-galaxy
+        Note over H: re-block via skill, resend (no render spent)
+        S-&gt;&gt;NB: generate_shot
+        S-&gt;&gt;B: shot + resource_uri
+    and scene 3
+        H-&gt;&gt;S: establish_scene → plan_scene → generate_shot
+        S-&gt;&gt;B: shot + resource_uri
+    end
+    end
+
+    rect rgb(244,247,252)
+    Note over H,B: POST — sequential join
+    H-&gt;&gt;S: list_project_assets
+    S--&gt;&gt;H: ResourceLinks (movie://…)
+    H--&gt;&gt;U: dailies — one keyframe per scene
+    end
+
+</pre>
+<p>Three things this picture makes obvious that the prose can't:</p>
+<ul>
+<li><strong>The barrier is short and cheap</strong> (one purple band, a handful of calls) but <strong>everything in the
+  green band sits below it.</strong> The blast-radius argument from Part 1 is now literally the vertical
+  layout: a bad <code>StyleRef</code> poisons all three parallel branches.</li>
+<li><strong><code>par</code> is only legal after the barrier.</strong> Scene 2 and scene 3 don't reference each other — they
+  reference the <em>same</em> <code>StyleRef</code> and cast produced above. Remove the barrier and <code>par</code> becomes a
+  race: three scenes inventing three looks.</li>
+<li><strong>The gate lives inside each branch, cheaply.</strong> Scene 2's <code>plan_scene</code> fails <code>validate_plan</code>
+  (the kid's gaze doesn't match where the galaxy is framed — the eyeline-to-environment case), the
+  agent re-blocks via the skill, and <strong>no frame was rendered</strong> for the rejected plan. Deterministic
+  gate before the expensive call, per branch.</li>
+</ul>
+<h2>What the pipeline actually produces</h2>
+<p>Abstract enough. Here are real artifacts from a single run, in pipeline order — the same
+barrier-then-fan-out you just read, rendered.</p>
+<p><strong>1. The style anchor</strong> (<code>generate_style_ref</code>) — one image that fixes the world's look: palette,
+light, texture. Everything downstream is composed to match it.</p>
+<p><img alt="The style reference: a warm, lamp-lit living room at night, establishing the film's overall look" src="images/studio-style-ref.jpg" /></p>
+<p><strong>2. The character sheet</strong> (<code>add_character</code>) — the identity anchor, generated once and reused in every
+shot the character appears in. This is what stops the "recast every scene" problem.</p>
+<p><img alt="A character reference sheet with front, 3/4, profile and back views and a colour key" src="images/studio-character-sheet.png" /></p>
+<p><strong>3. The set plate</strong> (<code>establish_scene</code>) — the people-free room, lit and dressed. It's rendered once
+per scene and every shot in that scene is composed on top of it, so the space stays put.</p>
+<p><img alt="An empty, morning-lit kitchen set plate with no characters in frame" src="images/studio-set-plate.jpg" /></p>
+<p><strong>4. The micro-shot</strong> (<code>plan_scene</code> → <code>generate_shot</code>) — the scene's coverage, validated for
+continuity, then rendered. Notice the payoff of stages 1–3: the <em>same</em> two characters, the <em>same</em>
+set, consistent screen direction, across three different framings.</p>
+<p><img alt="A three-frame storyboard — wide two-shot, close-up, reverse — with consistent characters and set" src="images/studio-microshot-3frame.png" /></p>
+<p>That last frame is the whole architecture cashing out: identity from the sheet, world from the style
+anchor, space from the set plate, continuity from the validator — composed into shots that agree.</p>
+<h2>Why the anchor is a single call, on purpose</h2>
+<p><code>generate_style_ref</code> produces <strong>one</strong> global look anchor, and every character and scene is composed
+<em>from</em> it. This is the barrier doing its job: it's the shared context that keeps N parallel branches
+in one visual world. Skip it — let each scene invent its own palette — and you've traded a barrier
+for a merge conflict you can only resolve by re-rendering everything.</p>
+<p>The same discipline shows up one level down. Keyframe composition edits in <strong>one character at a
+time</strong> (≤2 reference images per model call) starting from the styled empty set plate. Passing many
+references at once makes the model drop or invent characters. That's a barrier-within-a-shot: lock
+the plate, then add subjects sequentially against it.</p>
+<h2>The economics that make the fan-out affordable</h2>
+<p>None of this scales if the artifacts are heavy. They aren't — because tools return <strong>links, not
+bytes.</strong> An image tool saves the PNG server-side and returns a tiny record with a <code>resource_uri</code>
+(<code>movie://user/project/name</code>); pixels only cross into the model's context on an explicit
+<code>resources/read</code>. So the barrier's artifacts are cheap to pass to every one of the N parallel
+branches. Inline the base64 instead and you'd put megabytes into context on every call — the fan-out
+would collapse under its own token weight. <strong>Context economics is what makes the topology viable.</strong></p>
+<h2>The takeaway</h2>
+<p>The image model was the easy part. The architecture was recognizing that a film crew is already a
+multi-agent system — division of labor by craft, communicating through durable artifacts, gated at
+the one place it matters. The roles give you the agents. The handoff artifacts give you the
+interfaces. The production phases give you the concurrency graph. And the pre-production barrier —
+cheap, sequential, gated — gives you the one decision that determines whether the expensive part
+runs once or N times.</p>
+<blockquote>
+<p><strong>Model the crew, not the movie. Then find your barrier before you fan out.</strong></p>
+</blockquote>
+<script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>

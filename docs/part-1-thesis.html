@@ -1,0 +1,103 @@
+<!doctype html><meta charset=utf-8>
+<title>The Studio Is a Distributed System — The Agentic Studio</title><style>
+body{max-width:740px;margin:40px auto;font:17px/1.6 -apple-system,Segoe UI,Roboto,Helvetica,Arial;color:#222;padding:0 16px}
+h1{font-size:2em;line-height:1.2} h2{margin-top:1.6em;border-bottom:1px solid #eee;padding-bottom:.2em}
+h3{margin-top:1.3em} hr{border:none;border-top:2px solid #eee;margin:2.5em 0}
+code{background:#f4f4f4;padding:2px 5px;border-radius:4px;font-size:.9em}
+pre{background:#f6f8fa;padding:14px;border-radius:8px;overflow:auto} pre code{background:none;padding:0}
+pre.mermaid{background:#fff;text-align:center}
+table{border-collapse:collapse;width:100%;margin:1em 0} th,td{border:1px solid #ddd;padding:8px 10px;text-align:left;font-size:.92em}
+th{background:#fafafa} blockquote{border-left:4px solid #ddd;margin:1em 0;padding:.2em 1em;color:#555} img{max-width:100%}
+nav.posts{font-size:.9em;color:#666;margin-bottom:1.5em} nav.posts a{color:#06c;text-decoration:none}</style>
+<nav class="posts">The Agentic Studio: <a href="agentic-studio-series.html">Series</a> &middot; <strong>Part 1 · Thesis</strong> &middot; <a href="pre-production-barrier.html">Part 2 · Architecture</a> &middot; <a href="part-3-moat.html">Part 3 · Moat</a> &middot; <a href="index.html">Foundations · MCP & Skills</a></nav>
+<h1>Part 1 · The Studio Is a Distributed System</h1>
+<p><em>Part 1 of </em><em><a href="agentic-studio-series.html">The Agentic Studio</a></em><em>. The disruption in multimedia is not
+a better render function. It is the coordination layer around one — the scheduler, the state store,
+and the invariants that force N stochastic outputs to agree. This part is the argument for why that
+layer is an agent, and why it is buildable now.</em></p>
+<hr />
+<h2>The category error</h2>
+<p>Every "AI video" launch is a better <strong>render function</strong>: <code>prompt → asset</code>. One call, one output, no
+memory of the last output or obligation to the next. That curve is real and it is steep.</p>
+<p>It is also solving the wrong problem. A film is not an asset; it is <strong>a set of assets under a
+consistency constraint</strong>. The same face across 40 shots. The same set geometry from three angles.
+The same key light, the same screen direction, cut after cut. The value — and the difficulty — is not
+in any single frame. It is in the <em>agreement between frames</em>.</p>
+<p>You have seen what happens when that agreement breaks, because it makes the blooper reels. The coffee
+cup left on the table in a medieval fantasy series. The glass that's full, then empty, then full
+again across a single conversation. A character looking screen-left, then — after the cut —
+inexplicably screen-right, so the two people in the scene seem to have swapped seats. (That last one
+has a name: crossing the <em>180° line</em>, the invisible line between two actors that the camera must stay
+on one side of, or they flip sides on screen and the audience feels lost without knowing why.) Now
+add the failure unique to generative models: ask one for "the same character" twice and you get two
+subtly different people, because it has no memory of the last frame and no obligation to the next —
+like a film where the lead is recast, slightly, in every scene. Every individual frame can be
+flawless and the movie still falls apart.</p>
+<p><img alt="Three shots of one scene — a wide two-shot, a close-up, and the reverse — with the same two characters, set, wardrobe and lighting across all three" src="images/studio-microshot-3frame.png" /></p>
+<p><em>The opposite of a blooper: three shots the studio produced for a single scene — a wide two-shot, her
+close-up, then the reverse angle. Same two people, same room, same wardrobe, same light, consistent
+screen direction. This agreement between frames is precisely what a stand-alone render can't give you,
+and precisely what the rest of this series is about producing on purpose.</em></p>
+<blockquote>
+<p><strong>Improving the render function makes each frame better in isolation. It does nothing for the
+constraint that they agree. That constraint is a systems problem, and systems problems are solved
+with schedulers and state, not with prompts.</strong></p>
+</blockquote>
+<p>This is the category error the market is making: pouring capital into the render function while the
+actual product — coordinated, consistent, multi-asset output — sits one layer up, untouched.</p>
+<h2>What a studio actually is, stripped of film vocabulary</h2>
+<p>A film crew is a distributed system that predates computers. Read the org chart as architecture:</p>
+<ul>
+<li><strong>Workers specialized by capability</strong> — writer, production designer, cinematographer, editor.
+  → tools and sub-agents.</li>
+<li><strong>Typed handoffs</strong> — a script yields a shot list yields a storyboard yields dailies. Nobody works
+  from "the vibe of the meeting"; they work from the artifact. → typed state, passed explicitly.</li>
+<li><strong>A hard dependency order</strong> — you do not shoot before the script locks or light before the set is
+  built. → a barrier before the parallel work.</li>
+<li><strong>A continuity supervisor</strong> — one person whose entire job is catching state violations across
+  takes: wrong eyeline, crossed line, changed prop. → a deterministic validator.</li>
+<li><strong>Dailies review</strong> — every day's footage screened, and reshot if it misses. → a critic loop with
+  bounded retries.</li>
+</ul>
+<p>The crew is not a metaphor for the system. The crew <em>is</em> the system, implemented in people. Replacing
+the people with an agent and its tools changes the substrate, not the shape.</p>
+<h2>Why it is buildable now (and wasn't 18 months ago)</h2>
+<p>Three things had to be true at once, and only recently were:</p>
+<ol>
+<li><strong>Capability became portable.</strong> MCP exposes a credentialed model — image, video, audio — once,
+   callable by any agent over a wire protocol. The render function stops being a bespoke integration
+   and becomes a uniform <code>tools/call</code>. The coordination layer can treat every generator identically.</li>
+<li><strong>Craft became portable.</strong> Skills package the <em>how</em> — a director's decision procedure, the
+   enforceable continuity rules — as data the agent loads on demand, at ~one line of resident
+   context until it fires. The expertise that used to live in a senior operator's head becomes a
+   versioned artifact you can ship, diff, and reuse across agents and vendors.</li>
+<li><strong>Inference got cheap enough to iterate.</strong> A production doesn't render once; it renders, reviews,
+   and re-renders. That loop is only viable when a frame costs cents, not dollars. Cheap generation
+   is what makes a <em>critic loop</em> — and therefore consistency — economically possible.</li>
+</ol>
+<p>Capability + craft + cheap iteration is the whole precondition. Note what is <em>not</em> on the list: a
+frontier model breakthrough. The pieces are here; the missing work is architecture.</p>
+<h2>The claim, precisely</h2>
+<p>The Agentic Studio is a bet on where the value accrues. Restated as an engineering position:</p>
+<blockquote>
+<p><strong>The render function is being commoditized by everyone at once. The durable, defensible layer is
+the orchestrator that turns a render function into a production — shared state, dependency
+ordering, deterministic continuity gates, and a critic loop that enforces cross-asset consistency.
+Own that layer and the render function becomes a swappable backend.</strong></p>
+</blockquote>
+<p>That last clause is the strategic core. If the studio treats every generator as an interchangeable
+<code>tools/call</code>, then a better model — anyone's — is an <em>upgrade</em>, not a competitor. You are not racing
+the render function. You are the thing it plugs into.</p>
+<h2>What the rest of the series does</h2>
+<ul>
+<li><strong>Part 2 — <a href="pre-production-barrier.html">Barrier, Fan-out, Join</a>:</strong> the architecture in full. The
+  ordering constraint that dominates the design, the exact skill+MCP call path, the deterministic
+  gate + critic loop, and the context economics that let scenes fan out in parallel.</li>
+<li><strong>Part 3 — <a href="part-3-moat.html">Consistency Is the Product</a>:</strong> the invariants taken seriously —
+  identity across shots, continuity across scenes, cross-domain compositing — plus the unit economics
+  that drive the marginal cost of a scene toward zero.</li>
+</ul>
+<p>The one line to leave with: <strong>stop building a better camera; build the crew that knows what to do
+with one.</strong></p>
+<hr />
+<p><em>Built on a real MCP + Skills film-production pipeline. Foundations: </em><em><a href="index.html">MCP and Skills</a></em><em>.</em></p>

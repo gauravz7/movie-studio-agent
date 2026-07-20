@@ -19,20 +19,23 @@ cloudbuild.*    Cloud Build configs for the two repo-root-context images
 
 ---
 
-## 1. What is this? (blog / docs)
+## 1. What is this? — *The Agentic Studio* (blog / docs)
 
-The design story — why an agent + Skills + MCP, the "pre-production barrier," and the moat — is written
-up as a blog, **bundled in this repo** (`docs/`) so it renders on GitHub with no external hosting:
+The design story — why an agent + Skills + MCP, the "pre-production barrier," and why consistency is
+the moat — is a **3-part series + a foundations primer**. Read it **hosted** on GitHub Pages, or open
+the Markdown right here in [`docs/`](docs/) (both are bundled in this repo — no external dependency).
 
-- **[Agentic studio series](docs/agentic-studio-series.md)** — the overview of this project.
-- **[Part 1 — the thesis](docs/part-1-thesis.md)** — why an agentic studio, and the bet.
-- **[Part 3 — the moat](docs/part-3-moat.md)** — what's defensible.
-- **[The pre-production barrier](docs/pre-production-barrier.md)** — the problem this solves.
-- **[MCP & Skills primer](docs/mcp-and-skills.md)** — the two standards, for leaders then builders.
+| # | Post | Read hosted | In-repo Markdown |
+|---|------|-------------|------------------|
+| ▸ | **The Agentic Studio** — series overview & where to start | [🔗 hosted](https://gauravz7.github.io/movie-studio-agent/agentic-studio-series.html) | [docs/agentic-studio-series.md](docs/agentic-studio-series.md) |
+| 1 | **The thesis** — the studio is a distributed system; the bet | [🔗 hosted](https://gauravz7.github.io/movie-studio-agent/part-1-thesis.html) | [docs/part-1-thesis.md](docs/part-1-thesis.md) |
+| 2 | **The pre-production barrier** — barrier, fan-out, join (the architecture) | [🔗 hosted](https://gauravz7.github.io/movie-studio-agent/pre-production-barrier.html) | [docs/pre-production-barrier.md](docs/pre-production-barrier.md) |
+| 3 | **The moat** — consistency is the product; the invariants | [🔗 hosted](https://gauravz7.github.io/movie-studio-agent/part-3-moat.html) | [docs/part-3-moat.md](docs/part-3-moat.md) |
+| ★ | **MCP & Skills primer** — the two standards, for leaders then builders | [🔗 hosted](https://gauravz7.github.io/movie-studio-agent/) | [docs/mcp-and-skills.md](docs/mcp-and-skills.md) |
 
-> These links are relative Markdown files in this repo — click them right here on GitHub. (The same
-> posts are also published as HTML in the companion [`learn-mcp`](https://github.com/gauravz7/learn-mcp)
-> repo's GitHub Pages, once that site rebuilds.)
+> **Hosted** links are served from this repo's GitHub Pages (`docs/` on `main`) at
+> **https://gauravz7.github.io/movie-studio-agent/**. **In-repo** links open the Markdown directly on
+> GitHub. Both render the same content + images.
 
 ---
 

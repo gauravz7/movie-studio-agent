@@ -1,0 +1,141 @@
+<!doctype html><meta charset=utf-8>
+<title>Consistency Is the Product — The Agentic Studio</title><style>
+body{max-width:740px;margin:40px auto;font:17px/1.6 -apple-system,Segoe UI,Roboto,Helvetica,Arial;color:#222;padding:0 16px}
+h1{font-size:2em;line-height:1.2} h2{margin-top:1.6em;border-bottom:1px solid #eee;padding-bottom:.2em}
+h3{margin-top:1.3em} hr{border:none;border-top:2px solid #eee;margin:2.5em 0}
+code{background:#f4f4f4;padding:2px 5px;border-radius:4px;font-size:.9em}
+pre{background:#f6f8fa;padding:14px;border-radius:8px;overflow:auto} pre code{background:none;padding:0}
+pre.mermaid{background:#fff;text-align:center}
+table{border-collapse:collapse;width:100%;margin:1em 0} th,td{border:1px solid #ddd;padding:8px 10px;text-align:left;font-size:.92em}
+th{background:#fafafa} blockquote{border-left:4px solid #ddd;margin:1em 0;padding:.2em 1em;color:#555} img{max-width:100%}
+nav.posts{font-size:.9em;color:#666;margin-bottom:1.5em} nav.posts a{color:#06c;text-decoration:none}</style>
+<nav class="posts">The Agentic Studio: <a href="agentic-studio-series.html">Series</a> &middot; <a href="part-1-thesis.html">Part 1 · Thesis</a> &middot; <a href="pre-production-barrier.html">Part 2 · Architecture</a> &middot; <strong>Part 3 · Moat</strong> &middot; <a href="index.html">Foundations · MCP & Skills</a></nav>
+<h1>Part 3 · Consistency Is the Product</h1>
+<p><em>Part 3 of </em><em><a href="agentic-studio-series.html">The Agentic Studio</a></em><em>. Anyone can generate a clip. The moat
+is making a thousand clips that agree — on a face, a set, a light, a line of action — and doing it
+cheaply enough that the marginal scene approaches free. This part is about the invariants that are
+hard on purpose, and the unit economics that follow from getting them right.</em></p>
+<hr />
+<h2>The moat is an invariant, not a model</h2>
+<p>Part 1 argued the render function is being commoditized; Part 2 built the scheduler around it. The
+open question is where defensibility lives once every competitor can call the same generator. The
+answer is the thing a raw generator structurally cannot give you:</p>
+<blockquote>
+<p><strong>Cross-asset consistency. A generator optimizes each output independently; a studio optimizes the
+<em>agreement</em> between outputs. That agreement is enforced by state and validation the model never
+sees — which is exactly why a better model doesn't erase the moat, it feeds it.</strong></p>
+</blockquote>
+<p>Three invariants carry the weight. Each is a concrete engineering problem with a concrete mechanism,
+and each gets harder — not easier — as the render function improves, because a sharper render makes an
+inconsistency <em>more</em> obvious, not less.</p>
+<p><img alt="Three shots of one scene with the same characters, set, and screen direction — the product of all three invariants holding at once" src="images/studio-microshot-3frame.png" /></p>
+<p><em>What "the product" looks like: three framings of one scene where identity, continuity, and the world
+all hold. No single render gives you this — it's the invariants below, enforced together.</em></p>
+<h2>Invariant 1 — Identity across shots</h2>
+<p><strong>The problem.</strong> The same character must read as one person across dozens of shots, at different
+angles, distances, and lighting, when every render is an independent stochastic draw. Prompt the same
+description twice and you get two different people — imagine a film where the lead is quietly recast
+with a new look-alike in every single scene. That's the default behavior you're fighting.</p>
+<p><strong>The mechanism.</strong> Cast once, then condition every render on a <strong>canonical reference sheet</strong> — a
+front + 3/4 view generated at project start and stored in the bible. Keyframes are composed <em>from</em>
+those sheets, not re-described from text. And critically, composition adds <strong>one character at a time</strong>
+(≤2 reference images per model call) starting from the styled empty set plate: pass a crowd of
+references at once and the model drops or invents people. The constraint is counterintuitive and it is
+load-bearing — resist the urge to "optimize" it into a single multi-reference call.</p>
+<p><strong>The judge.</strong> A vision critic scores identity <em>against the reference sheets</em>, not against a vague
+notion of "a person." A single-image check literally cannot tell "the same character" from "a
+character"; the reference is what makes the score mean something.</p>
+<p><img alt="The reference sheet the critic scores against: multiple views of one character plus a colour key" src="images/studio-character-sheet.png" /></p>
+<p><em>The reference sheet is both the input to every render and the yardstick the critic judges it by.
+"Does this look like her?" only has an answer because there is a canonical </em>her<em> to compare to.</em></p>
+<h2>Invariant 2 — Continuity across scenes</h2>
+<p><strong>The problem.</strong> Screen direction, eyelines, the 180° line, lens family, and shot-to-shot angle
+deltas must hold across cuts, or the audience feels the space break even if every individual frame is
+beautiful. These are the famous blooper-reel gaffes — the coffee cup that appears mid-scene, the
+actor looking the wrong way after a cut so two people seem to trade seats. This is not a matter of
+taste; it is a set of rules professional script supervisors enforce on set precisely because they are
+easy, invisible mistakes to make.</p>
+<p><strong>The mechanism.</strong> Encode them as a <strong>deterministic validator</strong> over the shot-plan JSON — pure logic,
+no I/O — and gate rendering on it: R7 establish-first, R1 180° line, R3 eyeline, R4 30° jump-cut, R14
+reciprocal OTS height, R19 lens consistency. The plan persists only with <strong>zero error-severity
+violations</strong> (warnings are allowed). The gate runs <em>before</em> a single frame renders, so a continuity
+mistake costs microseconds of CPU, not a GPU render you then throw away.</p>
+<p><strong>Why deterministic.</strong> Continuity is <em>provable</em> — you can check the 180° line with arithmetic. Using
+an LLM for what a rule can prove is slower, costlier, and less reliable. Save the model's judgment for
+what is genuinely subjective.</p>
+<h2>Invariant 3 — Cross-domain compositing</h2>
+<p><strong>The problem.</strong> Some shots fuse distinct visual domains that must read as one photograph — the
+running example: a painted galaxy at optical infinity over a sharp, night-lit town. Get it wrong and
+the sky looks glued on, the single most common tell of amateur compositing. Think of a TV weather
+presenter whose lighting doesn't match the map projected behind them: your eye flags the fake
+instantly, even if you can't name what's off. A generated galaxy floating over a generated town fails
+in exactly the same way — two layers that never agreed on where the light comes from.</p>
+<p><strong>The mechanism.</strong> A <strong>single global style anchor</strong> both domains derive from, locking one color
+temperature, one grain, one palette across the cosmic and terrestrial layers. Then extend the critic
+with a <strong>lighting-coherence dimension</strong>: does the sky's light direction and color temperature match
+the ground's? This is a judgment a rule can't express and a single-frame glance can't catch — exactly
+the critic's job. (It also motivates extending the continuity validator with a <em>gaze-to-environment</em>
+rule: when a character looks up at the galaxy, the gaze vector must agree with where the galaxy is
+framed across cuts — an eyeline match where one participant is a set, not a person.)</p>
+<h2>The loop that enforces all three</h2>
+<p>Invariants are only real if something checks them and something fixes them. The studio runs a bounded
+correction loop on every render:</p>
+<pre><code>render → critic scores vs reference sheets + style anchor
+       → if pass: persist (qc_ok, qc_score) to the bible
+       → if fail: feed the critic's ISSUES back into the prompt, re-render
+       → repeat up to QC_MAX_TRIES, then escalate to the human
+</code></pre>
+<p>Two properties make it production-grade rather than a demo. It is <strong>bounded</strong> — a fixed retry ceiling,
+like a shoot with a limited number of takes, so a pathological prompt can't burn the budget. And it is
+<strong>corrective, not blind</strong> — the next attempt receives the critic's specific issues ("second character
+missing," "eyeline reversed"), not a fresh reroll of the dice. Blind retries converge slowly if at
+all; issue-directed retries converge fast.</p>
+<h2>The unit economics that follow</h2>
+<p>Consistency is the product; economics is why the product wins. Decompose a scene's cost:</p>
+<ul>
+<li><strong>Deterministic gate: effectively free.</strong> Validation is CPU-microseconds and catches the errors
+  that would otherwise cost a wasted render. It is <em>negative</em> cost — it pays for itself by not
+  rendering bad plans.</li>
+<li><strong>Render + QC: a small multiple of one image.</strong> Cost is <code>attempts × per-image</code>, with <code>attempts</code>
+  bounded by <code>QC_MAX_TRIES</code> (default 2) and usually 1. The critic adds one cheap vision call per
+  attempt. Call it low single-digit image-charges per keyframe.</li>
+<li><strong>Video: the expensive tier, and gated.</strong> Motion is minutes of async work and dollars per clip, so
+  it runs <strong>only on explicit request, after the keyframe is approved</strong> — never speculatively. You pay
+  for motion once you already like the frame.</li>
+</ul>
+<p>The shape that matters: the pipeline <strong>pushes the cheap, correct checks upstream and the expensive,
+stochastic work downstream, behind gates.</strong> A defect is caught by arithmetic before it becomes a
+render, and by a critic before it becomes a video. That ordering is what drives the marginal cost of an
+<em>acceptable</em> scene down — not the sticker price of a single generation, but the amortized cost of a
+scene that actually passes.</p>
+<blockquote>
+<p><strong>The naive cost of a scene is one render. The real cost is the number of renders until one is
+good. The studio's entire job is to make that number small — cheap gate first, directed retries
+second, expensive motion last and only on demand.</strong></p>
+</blockquote>
+<h2>Where it goes</h2>
+<p>The same skeleton — typed state, dependency order, deterministic gate, critic loop, links-not-bytes —
+generalizes past keyframes:</p>
+<ul>
+<li><strong>Video and sound as the same pipeline.</strong> Motion and score are additional stages behind the same
+  bible and the same gates. Async job names live in state; any instance rehydrates and polls them. The
+  architecture doesn't change shape when the assets get heavier — it just adds tiers.</li>
+<li><strong>Human-in-the-loop as direction, not babysitting.</strong> The interactive mode stops at meaningful
+  creative gates — approve the cast, approve the scenes, approve a keyframe — and the autonomous mode
+  runs straight through. The human is a director giving notes, not an operator clicking through every
+  step. The critic loop is what earns that trust: the system fixes its own obvious mistakes before
+  asking.</li>
+</ul>
+<h2>The series, closed</h2>
+<ul>
+<li><strong><a href="part-1-thesis.html">Part 1 — The Studio Is a Distributed System</a>:</strong> why the moat is the
+  orchestration layer, not the render function.</li>
+<li><strong><a href="pre-production-barrier.html">Part 2 — Barrier, Fan-out, Join</a>:</strong> the architecture that produces
+  the artifacts these invariants defend.</li>
+<li><strong>Part 3 — this one:</strong> the invariants themselves, the loop that enforces them, and the economics
+  that make consistency cheap.</li>
+</ul>
+<p>The whole thesis in one line: <strong>the render function makes a frame; the studio makes a frame agree with
+the thousand around it — and that agreement, enforced by state the model never sees, is the product.</strong></p>
+<hr />
+<p><em>Built on a real MCP + Skills film-production pipeline. Foundations: </em><em><a href="index.html">MCP and Skills</a></em><em>.</em></p>

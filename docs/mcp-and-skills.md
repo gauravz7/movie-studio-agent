@@ -45,13 +45,21 @@ re-implemented for an agent.
 ## What it looks like in practice
 
 Three concrete moments from the studio behind ***The Choice*** — a 4-scene photorealistic short the
-system produced end to end.
+system produced end to end. Every one of them inherits a single **style anchor**, generated first so
+the whole film shares one look:
+
+![The global style anchor every shot inherits — one palette, one grade, one grain](media/choice-style.jpg)
 
 **1. Capability (MCP).** "Cast Arthur." The agent calls one tool, `add_character`. The server runs
 nano-banana on Vertex, saves a canonical reference sheet, and returns a tiny record — a `movie://`
-link, not a megabyte of pixels.
+link, not a megabyte of pixels. The whole cast, anchored the same way — each a reusable sheet the
+render conditions on, never re-described from scratch:
 
-![Arthur — a character reference sheet returned by an MCP tool](media/choice-arthur.png)
+<div class="gallery">
+<figure><img src="media/choice-arthur.png" alt="Arthur reference sheet"><figcaption>Arthur</figcaption></figure>
+<figure><img src="media/choice-martha.png" alt="Martha reference sheet"><figcaption>Martha</figcaption></figure>
+<figure><img src="media/choice-buddy.png" alt="Buddy reference sheet"><figcaption>Buddy</figcaption></figure>
+</div>
 
 **2. Craft (Skills) → capability (MCP).** "Shoot scene 1." The `film-director` skill decides the
 coverage and continuity (a wide, a close, the reverse; hold the eyeline); the agent then calls
@@ -72,50 +80,120 @@ That's the whole shape. Now the depth, one layer at a time.
 
 ## Layer 1 — MCP: capability on a wire
 
-MCP is a client/server protocol. Your agent (the client) connects to a server that advertises three
-kinds of things:
+MCP is a client/server protocol built on **JSON-RPC 2.0**. Your agent (the *host*) runs a **client**;
+each capability provider is a **server**. A server only ever sees its own small conversation — never
+your whole chat, never the other servers — so isolation is structural, not a policy you enforce. A
+server advertises three kinds of things: **tools** (typed functions the model calls), **resources**
+(addressable blobs the client reads on demand, like `movie://user/project/frame.png`), and **prompts**
+(parameterized templates a user invokes).
 
-- **Tools** — typed functions the model can call (`generate_image(prompt, model)` →
-  `{resource_uri, size, model}`). Inputs and outputs are JSON-schema'd, so the model sees valid
-  arguments and gets back structured data, not prose it has to re-parse.
-- **Resources** — addressable blobs the client reads *on demand* (`movie://user/project/frame.png`).
-- **Prompts** — parameterized templates a user can invoke.
+### The handshake: protocol + capability negotiation
 
-Two transports matter: **stdio** (the server is a subprocess — great for local dev and desktop hosts)
-and **Streamable HTTP** (the server is a network service — how you run it on Cloud Run). The same
-server code serves both.
+A connection opens with a negotiation, not an assumption:
 
-**The load-bearing idea: links, not bytes.** An image tool does *not* return base64. It saves the PNG
-server-side and returns a ~100-token record with a `movie://` URI. The bytes travel to the client
-only on an explicit `resources/read`, and enter the *model's* context only if the host deliberately
-feeds them in (e.g. a vision critic). Why it's the whole ballgame: the studio fans a scene out to
-several parallel branches, each needing a few reference images. As links that's a few hundred tokens;
-as inlined base64 it melts the context window and the fan-out stops being affordable. **The economics
-of parallelism live in this one decision.**
+1. The client sends **`initialize`** carrying the **protocol version** it speaks and the
+   **capabilities** it offers (sampling, elicitation, roots…).
+2. The server replies with the version they'll actually use — they settle on a common one, so you
+   *trust the handshake, not a hardcoded constant* (ours negotiated `2025-11-25`) — plus **its**
+   capabilities (tools, resources, prompts, and whether each can emit `list_changed`).
+3. The client sends **`notifications/initialized`**, and the session is live.
 
-A few more MCP mechanics that earn their keep:
+This matters because features are **conditional**. Server-to-client calls like *sampling* (the server
+borrows the host's LLM to think) and *elicitation* (the server asks the user for structured input)
+only work if the client advertised them at handshake. A well-built tool checks and **degrades
+gracefully** — a "caption this image" tool that uses sampling falls back to a plain response against a
+client that never offered it. Capability negotiation is exactly why one server behaves correctly
+against a full desktop host *and* a bare headless agent.
+
+### Discovery: the agent learns the toolset at runtime
+
+Nothing is hardcoded on the client. After the handshake it asks:
+
+- `tools/list` → tool names + **JSON-schema for inputs *and* outputs**,
+- `resources/list` and `resources/templates/list` → readable blobs and URI templates,
+- `prompts/list` → user-invokable templates.
+
+So adding a tool on the server surfaces it to *every* client with no client change — this is the
+**M×N → M+N** collapse: build a capability once, every agent discovers it. Servers can also emit
+`notifications/tools/list_changed` so a long-lived client re-discovers a toolset that changed
+mid-session.
+
+### Transports: stdio vs Streamable HTTP
+
+The protocol is transport-agnostic; two carry it in practice:
+
+- **stdio** — the server is a **subprocess**; messages flow over stdin/stdout pipes. No network, one
+  server per client — ideal for local dev, desktop hosts, and CLI tools.
+- **Streamable HTTP** — the server is a **network service** over HTTPS. "Streamable" means it can push
+  messages back on an open connection via **Server-Sent Events (SSE)** — which is what carries
+  progress notifications and server-initiated calls. This is how you run on Cloud Run or behind a load
+  balancer.
+
+Switching between them is a one-line change on the client (`StdioConnectionParams` →
+`StreamableHTTPConnectionParams`); the server code is identical.
+
+### Sessions: stateful vs stateless
+
+Over HTTP, MCP runs **stateful** or **stateless**:
+
+- **Stateful** — at `initialize` the server issues an **`Mcp-Session-Id`**; the client echoes it on
+  every request and the server keeps per-session state on one instance. This is what makes the live
+  server→client callbacks (progress, sampling, elicitation) possible — they need an open channel.
+- **Stateless** — no session id, every request self-contained. You give up the live-callback trio but
+  gain trivial horizontal scale: any instance can serve any request.
+
+The trade-off is real and it bit me. A **stateful** server behind an **autoscaling** platform loses
+its session on a cold start or a new instance, and the client silently gets an **empty toolset** —
+which the agent then reports as "tool not found." For serverless request/response tools, run
+**stateless** (`stateless_http`) and the whole class of bug disappears.
+
+### The load-bearing idea: links, not bytes
+
+An image tool does *not* return base64. It saves the PNG server-side and returns a ~100-token record
+with a `movie://` URI. The bytes travel to the client only on an explicit `resources/read`, and enter
+the *model's* context only if the host deliberately feeds them in (e.g. a vision critic). Why it's the
+whole ballgame: the studio fans a scene out to several parallel branches, each needing a few reference
+images. As links that's a few hundred tokens; as inlined base64 it melts the context window and the
+fan-out stops being affordable. **The economics of parallelism live in this one decision.**
+
+![A set plate the image tool saved server-side and handed back as a `movie://` link — the pixels are fetched only on an explicit resources/read, never dumped into the model's context](media/choice-plate-s1.jpg)
+
+A few more mechanics that earn their keep:
 
 - **Per-call model selection.** Type the `model` parameter as an enum in the schema and the agent
   picks the right tier per call (fast draft vs. high-fidelity). Adding a model is a one-line change.
 - **Structured output.** Tools return typed records (a Pydantic model → `outputSchema`), so the agent
   gets `qc_ok`, `qc_issues`, `resource_uri` as *data*, not a paragraph.
 - **Errors as data.** Raise inside a tool and MCP surfaces `isError: true` with a message the model
-  can read and react to — a missing source image becomes "regenerate," not a crash.
+  can read and react to — a missing source image becomes "regenerate," not a crash. (A *broken call* —
+  unknown tool, bad args — is still a hard JSON-RPC error; a *logic* failure is `isError` so the
+  conversation continues.)
 
-**Field notes (these cost me time, so they don't cost you):**
+### Scaling: the bottleneck isn't your server
 
-- **Timeouts.** Image generation is ~12 s; the default MCP tool timeout in some clients is 5 s. Set
-  it generously (the studio uses 120–180 s) or every render "fails" spuriously.
-- **Go stateless on serverless.** A stateful Streamable-HTTP session is pinned to one instance. On
-  Cloud Run, a cold start or autoscale event drops that session and the client silently gets an
-  **empty tool list** — the agent then hallucinates "tool not found." Running the server
-  `stateless_http` (each request self-contained) makes the symptom disappear.
+At thousands of concurrent users the constraint is almost never the MCP server — it's **model quota**.
+Concurrent generation calls `429`, and cost scales linearly with usage, not with how clever the
+protocol is. Design for that reality:
+
+- **Stateless HTTP** so the service scales horizontally like any stateless web app.
+- **Object storage** (GCS/S3) for artifacts, served by signed URLs — the per-instance filesystem is
+  ephemeral and unshared, so never treat local disk as the store of record.
+- **Per-user rate limits** against a quota you sized on purpose, so one user can't exhaust the pool.
+- **Per-call model selection** and **prompt caching** to keep the one cost that actually dominates —
+  the work itself — in check. (Caching also narrows the input-token gap that always-resident tool
+  schemas create.)
+
+The server is cheap to scale; the render function is what you budget for.
+
+### Two more field notes
+
+- **Timeouts.** Image generation is ~12 s; the default MCP tool timeout in some clients is 5 s. Set it
+  generously (the studio uses 120–180 s) or every render "fails" spuriously.
 - **DNS-rebinding protection.** Behind a `*.run.app` host, a server's default localhost-only host
-  allowlist rejects every request (HTTP 421) — again an empty toolset. Disable that specific check
-  when the platform (Cloud Run + IAM) is your real security boundary.
-
-Those last two present *identically* — the toolset comes back empty — which is exactly why they're
-worth knowing before you hit them.
+  allowlist rejects every request (HTTP 421) — and, like the stateful-session trap above, it surfaces
+  as an *empty toolset*. Disable that specific check when the platform (Cloud Run + IAM) is your real
+  security boundary. Two very different causes, one identical symptom — worth knowing before you hit
+  it.
 
 ---
 
@@ -152,6 +230,8 @@ without re-reading the other three on every turn.
 An ADK agent (Gemini) is handed two toolsets: a `SkillToolset` (the skills) and an `McpToolset` (the
 movie server over HTTP). The LLM orchestrates; four structural pieces do the heavy lifting.
 
+![The dependency-ordered pipeline: style and cast lock first (the barrier), then scenes fan out in parallel and rejoin](media/seq-pipeline.png)
+
 - **A typed state store — the "bible."** One JSON document per user/project. Every stage reads the
   previous stage's output *from the bible*, never from chat history. **The handoff artifact is the
   interface** — the same discipline as passing typed messages between services instead of sharing
@@ -170,7 +250,11 @@ movie server over HTTP). The LLM orchestrates; four structural pieces do the hea
 
 The result is a film where the same face, set, and light hold across scenes:
 
-<video controls preload="metadata" src="media/choice-scene-2.mp4" style="width:100%"></video>
+<div class="gallery">
+<figure><video controls preload="metadata" src="media/choice-scene-2.mp4"></video><figcaption>Scene 2</figcaption></figure>
+<figure><video controls preload="metadata" src="media/choice-scene-3.mp4"></video><figcaption>Scene 3</figcaption></figure>
+<figure><video controls preload="metadata" src="media/choice-scene-4.mp4"></video><figcaption>Scene 4</figcaption></figure>
+</div>
 
 ---
 
@@ -195,6 +279,10 @@ The theory above is clean. Shipping taught the corollaries:
 None of these are model problems. They're **state, ordering, and validation** problems — which is the
 whole thesis: the durable, defensible layer is the *orchestrator*, and MCP + Skills are the two
 standards that let you build it without owning the render function.
+
+**The whole thing, end to end** — a sentence in, a multi-scene short out:
+
+<video controls preload="metadata" src="media/studio-walkthrough.mp4" style="width:100%"></video>
 
 ---
 

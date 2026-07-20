@@ -55,11 +55,19 @@ the director alone doesn't get you a studio.</p>
 </blockquote>
 <h2>What it looks like in practice</h2>
 <p>Three concrete moments from the studio behind <strong><em>The Choice</em></strong> — a 4-scene photorealistic short the
-system produced end to end.</p>
+system produced end to end. Every one of them inherits a single <strong>style anchor</strong>, generated first so
+the whole film shares one look:</p>
+<p><img alt="The global style anchor every shot inherits — one palette, one grade, one grain" src="media/choice-style.jpg" /></p>
 <p><strong>1. Capability (MCP).</strong> "Cast Arthur." The agent calls one tool, <code>add_character</code>. The server runs
 nano-banana on Vertex, saves a canonical reference sheet, and returns a tiny record — a <code>movie://</code>
-link, not a megabyte of pixels.</p>
-<p><img alt="Arthur — a character reference sheet returned by an MCP tool" src="media/choice-arthur.png" /></p>
+link, not a megabyte of pixels. The whole cast, anchored the same way — each a reusable sheet the
+render conditions on, never re-described from scratch:</p>
+<div class="gallery">
+<figure><img src="media/choice-arthur.png" alt="Arthur reference sheet"><figcaption>Arthur</figcaption></figure>
+<figure><img src="media/choice-martha.png" alt="Martha reference sheet"><figcaption>Martha</figcaption></figure>
+<figure><img src="media/choice-buddy.png" alt="Buddy reference sheet"><figcaption>Buddy</figcaption></figure>
+</div>
+
 <p><strong>2. Craft (Skills) → capability (MCP).</strong> "Shoot scene 1." The <code>film-director</code> skill decides the
 coverage and continuity (a wide, a close, the reverse; hold the eyeline); the agent then calls
 <code>generate_microshot</code> for the storyboard and <code>start_scene_video</code> to animate it.</p>
@@ -72,48 +80,107 @@ over the wire. Only small links cross back — the pixels are read on demand.</p
 <p>That's the whole shape. Now the depth, one layer at a time.</p>
 <hr />
 <h2>Layer 1 — MCP: capability on a wire</h2>
-<p>MCP is a client/server protocol. Your agent (the client) connects to a server that advertises three
-kinds of things:</p>
+<p>MCP is a client/server protocol built on <strong>JSON-RPC 2.0</strong>. Your agent (the <em>host</em>) runs a <strong>client</strong>;
+each capability provider is a <strong>server</strong>. A server only ever sees its own small conversation — never
+your whole chat, never the other servers — so isolation is structural, not a policy you enforce. A
+server advertises three kinds of things: <strong>tools</strong> (typed functions the model calls), <strong>resources</strong>
+(addressable blobs the client reads on demand, like <code>movie://user/project/frame.png</code>), and <strong>prompts</strong>
+(parameterized templates a user invokes).</p>
+<h3>The handshake: protocol + capability negotiation</h3>
+<p>A connection opens with a negotiation, not an assumption:</p>
+<ol>
+<li>The client sends <strong><code>initialize</code></strong> carrying the <strong>protocol version</strong> it speaks and the
+   <strong>capabilities</strong> it offers (sampling, elicitation, roots…).</li>
+<li>The server replies with the version they'll actually use — they settle on a common one, so you
+   <em>trust the handshake, not a hardcoded constant</em> (ours negotiated <code>2025-11-25</code>) — plus <strong>its</strong>
+   capabilities (tools, resources, prompts, and whether each can emit <code>list_changed</code>).</li>
+<li>The client sends <strong><code>notifications/initialized</code></strong>, and the session is live.</li>
+</ol>
+<p>This matters because features are <strong>conditional</strong>. Server-to-client calls like <em>sampling</em> (the server
+borrows the host's LLM to think) and <em>elicitation</em> (the server asks the user for structured input)
+only work if the client advertised them at handshake. A well-built tool checks and <strong>degrades
+gracefully</strong> — a "caption this image" tool that uses sampling falls back to a plain response against a
+client that never offered it. Capability negotiation is exactly why one server behaves correctly
+against a full desktop host <em>and</em> a bare headless agent.</p>
+<h3>Discovery: the agent learns the toolset at runtime</h3>
+<p>Nothing is hardcoded on the client. After the handshake it asks:</p>
 <ul>
-<li><strong>Tools</strong> — typed functions the model can call (<code>generate_image(prompt, model)</code> →
-  <code>{resource_uri, size, model}</code>). Inputs and outputs are JSON-schema'd, so the model sees valid
-  arguments and gets back structured data, not prose it has to re-parse.</li>
-<li><strong>Resources</strong> — addressable blobs the client reads <em>on demand</em> (<code>movie://user/project/frame.png</code>).</li>
-<li><strong>Prompts</strong> — parameterized templates a user can invoke.</li>
+<li><code>tools/list</code> → tool names + <strong>JSON-schema for inputs <em>and</em> outputs</strong>,</li>
+<li><code>resources/list</code> and <code>resources/templates/list</code> → readable blobs and URI templates,</li>
+<li><code>prompts/list</code> → user-invokable templates.</li>
 </ul>
-<p>Two transports matter: <strong>stdio</strong> (the server is a subprocess — great for local dev and desktop hosts)
-and <strong>Streamable HTTP</strong> (the server is a network service — how you run it on Cloud Run). The same
-server code serves both.</p>
-<p><strong>The load-bearing idea: links, not bytes.</strong> An image tool does <em>not</em> return base64. It saves the PNG
-server-side and returns a ~100-token record with a <code>movie://</code> URI. The bytes travel to the client
-only on an explicit <code>resources/read</code>, and enter the <em>model's</em> context only if the host deliberately
-feeds them in (e.g. a vision critic). Why it's the whole ballgame: the studio fans a scene out to
-several parallel branches, each needing a few reference images. As links that's a few hundred tokens;
-as inlined base64 it melts the context window and the fan-out stops being affordable. <strong>The economics
-of parallelism live in this one decision.</strong></p>
-<p>A few more MCP mechanics that earn their keep:</p>
+<p>So adding a tool on the server surfaces it to <em>every</em> client with no client change — this is the
+<strong>M×N → M+N</strong> collapse: build a capability once, every agent discovers it. Servers can also emit
+<code>notifications/tools/list_changed</code> so a long-lived client re-discovers a toolset that changed
+mid-session.</p>
+<h3>Transports: stdio vs Streamable HTTP</h3>
+<p>The protocol is transport-agnostic; two carry it in practice:</p>
+<ul>
+<li><strong>stdio</strong> — the server is a <strong>subprocess</strong>; messages flow over stdin/stdout pipes. No network, one
+  server per client — ideal for local dev, desktop hosts, and CLI tools.</li>
+<li><strong>Streamable HTTP</strong> — the server is a <strong>network service</strong> over HTTPS. "Streamable" means it can push
+  messages back on an open connection via <strong>Server-Sent Events (SSE)</strong> — which is what carries
+  progress notifications and server-initiated calls. This is how you run on Cloud Run or behind a load
+  balancer.</li>
+</ul>
+<p>Switching between them is a one-line change on the client (<code>StdioConnectionParams</code> →
+<code>StreamableHTTPConnectionParams</code>); the server code is identical.</p>
+<h3>Sessions: stateful vs stateless</h3>
+<p>Over HTTP, MCP runs <strong>stateful</strong> or <strong>stateless</strong>:</p>
+<ul>
+<li><strong>Stateful</strong> — at <code>initialize</code> the server issues an <strong><code>Mcp-Session-Id</code></strong>; the client echoes it on
+  every request and the server keeps per-session state on one instance. This is what makes the live
+  server→client callbacks (progress, sampling, elicitation) possible — they need an open channel.</li>
+<li><strong>Stateless</strong> — no session id, every request self-contained. You give up the live-callback trio but
+  gain trivial horizontal scale: any instance can serve any request.</li>
+</ul>
+<p>The trade-off is real and it bit me. A <strong>stateful</strong> server behind an <strong>autoscaling</strong> platform loses
+its session on a cold start or a new instance, and the client silently gets an <strong>empty toolset</strong> —
+which the agent then reports as "tool not found." For serverless request/response tools, run
+<strong>stateless</strong> (<code>stateless_http</code>) and the whole class of bug disappears.</p>
+<h3>The load-bearing idea: links, not bytes</h3>
+<p>An image tool does <em>not</em> return base64. It saves the PNG server-side and returns a ~100-token record
+with a <code>movie://</code> URI. The bytes travel to the client only on an explicit <code>resources/read</code>, and enter
+the <em>model's</em> context only if the host deliberately feeds them in (e.g. a vision critic). Why it's the
+whole ballgame: the studio fans a scene out to several parallel branches, each needing a few reference
+images. As links that's a few hundred tokens; as inlined base64 it melts the context window and the
+fan-out stops being affordable. <strong>The economics of parallelism live in this one decision.</strong></p>
+<p><img alt="A set plate the image tool saved server-side and handed back as a movie:// link — the pixels are fetched only on an explicit resources/read, never dumped into the model's context" src="media/choice-plate-s1.jpg" /></p>
+<p>A few more mechanics that earn their keep:</p>
 <ul>
 <li><strong>Per-call model selection.</strong> Type the <code>model</code> parameter as an enum in the schema and the agent
   picks the right tier per call (fast draft vs. high-fidelity). Adding a model is a one-line change.</li>
 <li><strong>Structured output.</strong> Tools return typed records (a Pydantic model → <code>outputSchema</code>), so the agent
   gets <code>qc_ok</code>, <code>qc_issues</code>, <code>resource_uri</code> as <em>data</em>, not a paragraph.</li>
 <li><strong>Errors as data.</strong> Raise inside a tool and MCP surfaces <code>isError: true</code> with a message the model
-  can read and react to — a missing source image becomes "regenerate," not a crash.</li>
+  can read and react to — a missing source image becomes "regenerate," not a crash. (A <em>broken call</em> —
+  unknown tool, bad args — is still a hard JSON-RPC error; a <em>logic</em> failure is <code>isError</code> so the
+  conversation continues.)</li>
 </ul>
-<p><strong>Field notes (these cost me time, so they don't cost you):</strong></p>
+<h3>Scaling: the bottleneck isn't your server</h3>
+<p>At thousands of concurrent users the constraint is almost never the MCP server — it's <strong>model quota</strong>.
+Concurrent generation calls <code>429</code>, and cost scales linearly with usage, not with how clever the
+protocol is. Design for that reality:</p>
 <ul>
-<li><strong>Timeouts.</strong> Image generation is ~12 s; the default MCP tool timeout in some clients is 5 s. Set
-  it generously (the studio uses 120–180 s) or every render "fails" spuriously.</li>
-<li><strong>Go stateless on serverless.</strong> A stateful Streamable-HTTP session is pinned to one instance. On
-  Cloud Run, a cold start or autoscale event drops that session and the client silently gets an
-  <strong>empty tool list</strong> — the agent then hallucinates "tool not found." Running the server
-  <code>stateless_http</code> (each request self-contained) makes the symptom disappear.</li>
-<li><strong>DNS-rebinding protection.</strong> Behind a <code>*.run.app</code> host, a server's default localhost-only host
-  allowlist rejects every request (HTTP 421) — again an empty toolset. Disable that specific check
-  when the platform (Cloud Run + IAM) is your real security boundary.</li>
+<li><strong>Stateless HTTP</strong> so the service scales horizontally like any stateless web app.</li>
+<li><strong>Object storage</strong> (GCS/S3) for artifacts, served by signed URLs — the per-instance filesystem is
+  ephemeral and unshared, so never treat local disk as the store of record.</li>
+<li><strong>Per-user rate limits</strong> against a quota you sized on purpose, so one user can't exhaust the pool.</li>
+<li><strong>Per-call model selection</strong> and <strong>prompt caching</strong> to keep the one cost that actually dominates —
+  the work itself — in check. (Caching also narrows the input-token gap that always-resident tool
+  schemas create.)</li>
 </ul>
-<p>Those last two present <em>identically</em> — the toolset comes back empty — which is exactly why they're
-worth knowing before you hit them.</p>
+<p>The server is cheap to scale; the render function is what you budget for.</p>
+<h3>Two more field notes</h3>
+<ul>
+<li><strong>Timeouts.</strong> Image generation is ~12 s; the default MCP tool timeout in some clients is 5 s. Set it
+  generously (the studio uses 120–180 s) or every render "fails" spuriously.</li>
+<li><strong>DNS-rebinding protection.</strong> Behind a <code>*.run.app</code> host, a server's default localhost-only host
+  allowlist rejects every request (HTTP 421) — and, like the stateful-session trap above, it surfaces
+  as an <em>empty toolset</em>. Disable that specific check when the platform (Cloud Run + IAM) is your real
+  security boundary. Two very different causes, one identical symptom — worth knowing before you hit
+  it.</li>
+</ul>
 <hr />
 <h2>Layer 2 — Skills: craft, in the agent's head</h2>
 <p>A <strong>Skill</strong> is a folder with a <code>SKILL.md</code>: a short spec of a workflow, plus optional reference files.
@@ -140,6 +207,7 @@ without re-reading the other three on every turn.</p>
 <h2>Layer 3 — Composition: how the studio is assembled</h2>
 <p>An ADK agent (Gemini) is handed two toolsets: a <code>SkillToolset</code> (the skills) and an <code>McpToolset</code> (the
 movie server over HTTP). The LLM orchestrates; four structural pieces do the heavy lifting.</p>
+<p><img alt="The dependency-ordered pipeline: style and cast lock first (the barrier), then scenes fan out in parallel and rejoin" src="media/seq-pipeline.png" /></p>
 <ul>
 <li><strong>A typed state store — the "bible."</strong> One JSON document per user/project. Every stage reads the
   previous stage's output <em>from the bible</em>, never from chat history. <strong>The handoff artifact is the
@@ -158,7 +226,11 @@ movie server over HTTP). The LLM orchestrates; four structural pieces do the hea
   at a time. Identity isn't re-described in a prompt; it's re-fed as an image.</li>
 </ul>
 <p>The result is a film where the same face, set, and light hold across scenes:</p>
-<video controls preload="metadata" src="media/choice-scene-2.mp4" style="width:100%"></video>
+<div class="gallery">
+<figure><video controls preload="metadata" src="media/choice-scene-2.mp4"></video><figcaption>Scene 2</figcaption></figure>
+<figure><video controls preload="metadata" src="media/choice-scene-3.mp4"></video><figcaption>Scene 3</figcaption></figure>
+<figure><video controls preload="metadata" src="media/choice-scene-4.mp4"></video><figcaption>Scene 4</figcaption></figure>
+</div>
 
 <hr />
 <h2>The lessons that only show up when you ship</h2>
@@ -181,6 +253,9 @@ movie server over HTTP). The LLM orchestrates; four structural pieces do the hea
 <p>None of these are model problems. They're <strong>state, ordering, and validation</strong> problems — which is the
 whole thesis: the durable, defensible layer is the <em>orchestrator</em>, and MCP + Skills are the two
 standards that let you build it without owning the render function.</p>
+<p><strong>The whole thing, end to end</strong> — a sentence in, a multi-scene short out:</p>
+<video controls preload="metadata" src="media/studio-walkthrough.mp4" style="width:100%"></video>
+
 <hr />
 <p><em>Read the series: </em><em><a href="agentic-studio-series.html">The Agentic Studio</a></em><em> ·
 </em><em><a href="part-1-thesis.html">Part 1 — the thesis</a></em><em> ·

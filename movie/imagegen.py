@@ -138,6 +138,34 @@ def qc_check(image_path: str, expects: str) -> tuple[bool, str]:
     return r["ok"], r["issues"]
 
 
+def non_speaking_characters(cast: list[tuple[str, str]], style_guide: str = "") -> list[str]:
+    """QC-critique which cast members CANNOT speak human dialogue — i.e. realistic (non-
+    anthropomorphic) ANIMALS. `cast` is [(name, description), …]. Uses the QC/critic model.
+    Respects the style: a talking-animal / anthropomorphic cartoon → animals CAN speak → returns [].
+    Fail-open (returns [] on any error) so it never blocks rendering."""
+    import json
+    cast = [(n, d) for n, d in (cast or []) if n]
+    if not cast:
+        return []
+    listing = "\n".join(f"- {n}: {d}" for n, d in cast)
+    instr = (
+        f"Film visual style: {style_guide or 'unspecified'}.\nCharacters:\n{listing}\n\n"
+        "Which of these characters are REALISTIC ANIMALS that therefore CANNOT speak human dialogue? "
+        "A human, robot, or an ANTHROPOMORPHIC / talking-animal cartoon character CAN speak. Only a "
+        "realistic, non-anthropomorphic animal cannot. If the style is clearly a talking-animal or "
+        "anthropomorphic cartoon, then animals CAN speak — return an empty list.\n"
+        'Reply ONLY compact JSON: {"cannot_speak": ["<name>", ...]}.'
+    )
+    try:
+        resp = _client().models.generate_content(model=QC_MODEL, contents=instr)
+        txt = (resp.text or "").strip().removeprefix("```json").removeprefix("```").removesuffix("```")
+        v = json.loads(txt[txt.find("{"): txt.rfind("}") + 1])
+        names = {n.strip().lower() for n, _ in cast}
+        return [str(x) for x in v.get("cannot_speak", []) if str(x).strip().lower() in names]
+    except Exception:
+        return []
+
+
 def compose_image(prompt: str, ref_paths: list[str], model: str | None = None) -> tuple[bytes, str]:
     """Reference images + text -> image. Used to build a KEYFRAME from the scene's anchors
     (establishing frame + character sheets + optional sibling frame) so a new camera angle

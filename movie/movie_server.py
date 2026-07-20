@@ -665,23 +665,34 @@ def mv_start_scene_video(user_id: str, project_id: str, scene_id: str,
     names = ", ".join(n for _, n in cast) or "the characters"
     only = (f" Feature ONLY {names} — do NOT add any other people or characters who are not in "
             "the reference sheets." if cast else "")
+    # QC-critique (critic model): realistic animals CANNOT speak — mute their spoken lines, keeping
+    # their action + a natural vocalisation. Anthropomorphic/talking-animal styles are exempt.
+    _nd = {c.get("name", ""): c.get("desc", "") for c in b.get("characters", {}).values()}
+    mute = {x.lower() for x in imagegen.non_speaking_characters(
+        [(nm, _nd.get(nm, "")) for _, nm in cast], b.get("style_guide", ""))}
     n = len(beat_list)
     win = max(1, round(duration_seconds / n))
     has_dialogue = False
+    dialogue_notes: list[str] = []
 
     def _window_desc(i: int, beat) -> str:
         nonlocal has_dialogue
         action, emotion, dialogue, speaker = _beat_fields(beat)
         t0, t1 = i * win, min((i + 1) * win, duration_seconds)
-        s = f"{t0}-{t1}s (SHOT {i+1}): {action}."
+        who = speaker or "the character"
+        is_animal = bool(speaker) and speaker.strip().lower() in mute
+        # ACTION first: the clip must PERFORM the specific action from this storyboard panel.
+        s = f"{t0}-{t1}s — PERFORM storyboard SHOT {i+1}: {action}."
         if emotion:
-            voice = " and voice" if audio else ""
-            who = speaker or "the character"
-            s += f" {who} feels {emotion} — show it in their face, body language{voice}."
-        if dialogue and audio:  # spoken lines only when audio is requested
+            voice = " and voice" if (audio and not is_animal) else ""
+            s += f" {who} feels {emotion} — show it in face, body language{voice}."
+        if dialogue and audio and not is_animal:      # spoken line (humans/robots/anthropomorphic)
             has_dialogue = True
-            who = speaker or "a character"
             s += f' {who} says, with a {emotion or "natural"} tone: "{dialogue}"'
+        elif dialogue and is_animal:                   # animals don't talk — act it + natural sound
+            dialogue_notes.append(f'{speaker} is an animal and cannot speak — dropped line: "{dialogue[:40]}"')
+            if audio:
+                s += f" {who} makes a natural {speaker.lower()} sound (an animal — NO human speech, NO lip-sync)."
         return s
 
     windows = " ".join(_window_desc(i, beat) for i, beat in enumerate(beat_list))
@@ -689,15 +700,18 @@ def mv_start_scene_video(user_id: str, project_id: str, scene_id: str,
         audio_line = " SILENT clip — no dialogue and no audio track; convey everything visually."
     elif has_dialogue:
         audio_line = (" Include natural SPOKEN DIALOGUE with lip movement synced to each line and "
-                      "the matching emotional tone of voice, plus subtle ambient sound.")
+                      "the matching emotional tone of voice, plus subtle ambient sound. Only the "
+                      "human/speaking characters talk; animals make natural sounds, never words.")
     else:
-        audio_line = " Include subtle ambient sound and expressive performances."
+        audio_line = " Include subtle ambient sound and expressive performances (no spoken words)."
     prompt = (
         f"The FIRST reference image is a {n}-panel micro-shot storyboard (SHOT 1..{n}). Generate "
-        f"ONE continuous {duration_seconds}-second video that plays those beats IN ORDER. Feature "
-        f"{names} exactly as in their reference sheets, in the setting from the background "
-        f"reference.{only} {windows}{_screen_direction(cast)}{audio_line} {b.get('style_guide', '')}. "
-        "Consistent character identity, emotive acting, gentle cinematic motion, 16:9.")
+        f"ONE continuous {duration_seconds}-second video that PERFORMS those storyboard panels IN "
+        f"ORDER — each character carries out the specific action of its panel (not static talking "
+        f"heads). Feature {names} exactly as in their reference sheets, in the setting from the "
+        f"background reference.{only} {windows}{_screen_direction(cast)}{audio_line} "
+        f"{b.get('style_guide', '')}. Consistent character identity, emotive acting, gentle "
+        "cinematic motion, 16:9.")
 
     try:
         r = videogen.start_reference_video(prompt, refs, duration_seconds=duration_seconds)
@@ -716,6 +730,8 @@ def mv_start_scene_video(user_id: str, project_id: str, scene_id: str,
                         "video_duration": duration_seconds, "video_retries": 0,
                         "video_error": None})
     result = {"scene_id": scene_id, "audio": bool(audio), **r}
+    if dialogue_notes:                       # QC dropped spoken lines for animals
+        result["dialogue_notes"] = dialogue_notes
     if not wait:
         return result  # async: caller must poll get_scene_video
     # BLOCK until the clip is saved (handles transient failures via get_scene_video's auto-retry)

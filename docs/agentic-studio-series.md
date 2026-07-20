@@ -38,46 +38,6 @@ every shot the character appears in. Front, 3/4, profile, and back views plus a 
 same person shows up scene after scene instead of a new look-alike each render. It is the studio's
 memory, not the model's.*
 
-## The architecture, in primitives
-
-Strip the film vocabulary and here is the machine:
-
-- **A typed state store (the "bible").** In film, the "bible" is the binder every department works
-  from — who the characters are, what the world looks like, what's happened so far. Here it's one JSON
-  document per user/project (strictly partitioned, atomic writes under a lock, project names sanitized
-  so a bad one can't escape its folder). It is the single source of truth; every stage reads the
-  previous stage's output from it, never from chat history. **The handoff artifact is the interface** —
-  the same discipline as passing typed messages between services instead of sharing mutable memory.
-- **A dependency-ordered pipeline with a barrier.** `create_project → generate_style_ref →
-  add_character → establish_scene → plan_scene → generate_shot → start/poll video`. The first three
-  are a **sequential barrier**: everything downstream conditions on the look and the cast. After the
-  barrier, scenes are independent and **fan out in parallel** — a literal second unit. Barrier →
-  fan-out → join is the topology, and it is dictated by the data dependencies, not chosen for style.
-- **A deterministic validation gate.** `film_grammar.validate_plan` is pure logic — no I/O. It
-  checks continuity rules (R7 establish-first, R1 180° line, R3 eyeline, R4 30° jump-cut, R14
-  reciprocal OTS height, R19 lens) against the shot-plan JSON and returns typed violations.
-  `plan_scene` **persists shots only if there are zero error-severity violations.** A cheap, fast,
-  correct gate that runs *before* a single GPU-second is spent on rendering.
-- **An LLM critic loop.** After a render, a vision model scores the frame per dimension — prompt
-  adherence, character identity *versus the reference sheets*, framing, anatomy, extra/missing
-  subjects — and on failure the pipeline **regenerates with the critic's issues fed back into the
-  prompt**, bounded by `QC_MAX_TRIES`. Deterministic gate for what a rule can prove; LLM critic for
-  what needs judgment. Two judges, different economics.
-- **Resource indirection — links, not bytes.** Tools return a tiny record with a `movie://` URI;
-  pixels cross into the model's context only on an explicit `resources/read`. This is the difference
-  between passing N reference images to N parallel branches for a few hundred tokens versus melting
-  the context window with base64. The fan-out is only affordable *because* of this.
-- **Stateless async jobs.** Video (Veo) returns an upstream job name; the server holds no job
-  state — the name lives in the bible and any instance can rehydrate and poll it. Long work, no
-  sticky sessions, horizontal scale intact.
-
-Two runtimes compose to drive it: **MCP** carries the credentialed *capability* over the wire (think
-of it as the standard socket every generator plugs into); **Skills** carry the *craft* — the
-director's decision procedure and the continuity rules. Skills load by *progressive disclosure*, like
-a well-indexed manual: the table of contents stays on the desk (always resident), you open a chapter
-only when the task needs it, and you pull the detailed appendix only when that chapter points to it —
-so the know-how costs ~one line of context until it actually fires.
-
 ## Why the render function isn't enough
 
 The hard part is the invariant, and the invariant is **cross-asset consistency**:
@@ -131,6 +91,19 @@ Per scene, a people-free **set plate** and a **3-panel micro-shot** storyboard (
 </div>
 
 ---
+
+## The architecture, in primitives
+
+Strip the film vocabulary and the machine is six pieces:
+
+- **Typed state store ("the bible")** — one JSON per user/project; every stage reads the previous stage's output from it, not from chat history.
+- **Dependency-ordered pipeline with a barrier** — style + cast lock first (sequential); then scenes fan out in parallel and join. Barrier → fan-out → join, dictated by the data dependencies.
+- **Deterministic validation gate** — `film_grammar.validate_plan` (pure logic) checks continuity rules and persists a plan only with zero error-severity violations — before a single GPU-second.
+- **LLM critic loop** — after a render, a vision model scores it against the reference sheets and regenerates with the critic's feedback fed back in (bounded by `QC_MAX_TRIES`).
+- **Links, not bytes** — tools return a `movie://` URI; pixels enter context only on an explicit read, which is what makes the parallel fan-out affordable.
+- **Stateless async jobs** — a video job name lives in the bible; any instance can rehydrate and poll it. Horizontal scale intact.
+
+**MCP** carries the credentialed *capability*; **Skills** carry the *craft* — the director's decision procedure and the continuity rules — loaded by progressive disclosure, so the know-how costs ~one line of context until it fires.
 
 ## The series
 

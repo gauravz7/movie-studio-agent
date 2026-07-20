@@ -50,44 +50,6 @@ film — and the office, not the illustrator, is what we're building.</p>
 every shot the character appears in. Front, 3/4, profile, and back views plus a colour key, so the
 same person shows up scene after scene instead of a new look-alike each render. It is the studio's
 memory, not the model's.</em></p>
-<h2>The architecture, in primitives</h2>
-<p>Strip the film vocabulary and here is the machine:</p>
-<ul>
-<li><strong>A typed state store (the "bible").</strong> In film, the "bible" is the binder every department works
-  from — who the characters are, what the world looks like, what's happened so far. Here it's one JSON
-  document per user/project (strictly partitioned, atomic writes under a lock, project names sanitized
-  so a bad one can't escape its folder). It is the single source of truth; every stage reads the
-  previous stage's output from it, never from chat history. <strong>The handoff artifact is the interface</strong> —
-  the same discipline as passing typed messages between services instead of sharing mutable memory.</li>
-<li><strong>A dependency-ordered pipeline with a barrier.</strong> <code>create_project → generate_style_ref →
-  add_character → establish_scene → plan_scene → generate_shot → start/poll video</code>. The first three
-  are a <strong>sequential barrier</strong>: everything downstream conditions on the look and the cast. After the
-  barrier, scenes are independent and <strong>fan out in parallel</strong> — a literal second unit. Barrier →
-  fan-out → join is the topology, and it is dictated by the data dependencies, not chosen for style.</li>
-<li><strong>A deterministic validation gate.</strong> <code>film_grammar.validate_plan</code> is pure logic — no I/O. It
-  checks continuity rules (R7 establish-first, R1 180° line, R3 eyeline, R4 30° jump-cut, R14
-  reciprocal OTS height, R19 lens) against the shot-plan JSON and returns typed violations.
-  <code>plan_scene</code> <strong>persists shots only if there are zero error-severity violations.</strong> A cheap, fast,
-  correct gate that runs <em>before</em> a single GPU-second is spent on rendering.</li>
-<li><strong>An LLM critic loop.</strong> After a render, a vision model scores the frame per dimension — prompt
-  adherence, character identity <em>versus the reference sheets</em>, framing, anatomy, extra/missing
-  subjects — and on failure the pipeline <strong>regenerates with the critic's issues fed back into the
-  prompt</strong>, bounded by <code>QC_MAX_TRIES</code>. Deterministic gate for what a rule can prove; LLM critic for
-  what needs judgment. Two judges, different economics.</li>
-<li><strong>Resource indirection — links, not bytes.</strong> Tools return a tiny record with a <code>movie://</code> URI;
-  pixels cross into the model's context only on an explicit <code>resources/read</code>. This is the difference
-  between passing N reference images to N parallel branches for a few hundred tokens versus melting
-  the context window with base64. The fan-out is only affordable <em>because</em> of this.</li>
-<li><strong>Stateless async jobs.</strong> Video (Veo) returns an upstream job name; the server holds no job
-  state — the name lives in the bible and any instance can rehydrate and poll it. Long work, no
-  sticky sessions, horizontal scale intact.</li>
-</ul>
-<p>Two runtimes compose to drive it: <strong>MCP</strong> carries the credentialed <em>capability</em> over the wire (think
-of it as the standard socket every generator plugs into); <strong>Skills</strong> carry the <em>craft</em> — the
-director's decision procedure and the continuity rules. Skills load by <em>progressive disclosure</em>, like
-a well-indexed manual: the table of contents stays on the desk (always resident), you open a chapter
-only when the task needs it, and you pull the detailed appendix only when that chapter points to it —
-so the know-how costs ~one line of context until it actually fires.</p>
 <h2>Why the render function isn't enough</h2>
 <p>The hard part is the invariant, and the invariant is <strong>cross-asset consistency</strong>:</p>
 <ul>
@@ -133,6 +95,17 @@ identity across every shot:</p>
 </div>
 
 <hr />
+<h2>The architecture, in primitives</h2>
+<p>Strip the film vocabulary and the machine is six pieces:</p>
+<ul>
+<li><strong>Typed state store ("the bible")</strong> — one JSON per user/project; every stage reads the previous stage's output from it, not from chat history.</li>
+<li><strong>Dependency-ordered pipeline with a barrier</strong> — style + cast lock first (sequential); then scenes fan out in parallel and join. Barrier → fan-out → join, dictated by the data dependencies.</li>
+<li><strong>Deterministic validation gate</strong> — <code>film_grammar.validate_plan</code> (pure logic) checks continuity rules and persists a plan only with zero error-severity violations — before a single GPU-second.</li>
+<li><strong>LLM critic loop</strong> — after a render, a vision model scores it against the reference sheets and regenerates with the critic's feedback fed back in (bounded by <code>QC_MAX_TRIES</code>).</li>
+<li><strong>Links, not bytes</strong> — tools return a <code>movie://</code> URI; pixels enter context only on an explicit read, which is what makes the parallel fan-out affordable.</li>
+<li><strong>Stateless async jobs</strong> — a video job name lives in the bible; any instance can rehydrate and poll it. Horizontal scale intact.</li>
+</ul>
+<p><strong>MCP</strong> carries the credentialed <em>capability</em>; <strong>Skills</strong> carry the <em>craft</em> — the director's decision procedure and the continuity rules — loaded by progressive disclosure, so the know-how costs ~one line of context until it fires.</p>
 <h2>The series</h2>
 <h3>Part 1 — The Thesis: <em>The Studio Is a Distributed System</em></h3>
 <p>For leaders and architects. Why the next generation of multimedia is orchestration, not generation;

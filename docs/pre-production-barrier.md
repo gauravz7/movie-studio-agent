@@ -248,7 +248,7 @@ plate, the per-scene fan-out (a 3-panel micro-shot), and the join (the animated 
 
 <div class="gallery">
 <figure><img src="media/choice-plate-s1.jpg" alt="set plate"><figcaption>Barrier → people-free set plate</figcaption></figure>
-<figure><img src="media/choice-storyboard-s1.png" alt="3-panel micro-shot"><figcaption>Fan-out → 3-panel micro-shot</figcaption></figure>
+<figure><img src="media/choice-storyboard-3shot.png" alt="3-panel micro-shot"><figcaption>Fan-out → 3-panel micro-shot</figcaption></figure>
 <figure><video controls preload="metadata" src="media/choice-scene-1.mp4"></video><figcaption>Join → the animated scene</figcaption></figure>
 </div>
 
@@ -271,7 +271,7 @@ per scene and every shot in that scene is composed on top of it, so the space st
 continuity, then rendered. Notice the payoff of stages 1–3: the *same* two characters, the *same*
 set, consistent screen direction, across three different framings.
 
-![A three-frame storyboard — wide two-shot, close-up, reverse — with consistent characters and set](media/choice-storyboard-s1.png)
+![A three-shot storyboard — SHOT 1 / 2 / 3, the same cast, set, wardrobe and light held across all three panels](media/choice-storyboard-3shot.png)
 
 That last frame is the whole architecture cashing out: identity from the sheet, world from the style
 anchor, space from the set plate, continuity from the validator — composed into shots that agree.

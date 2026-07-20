@@ -105,7 +105,7 @@ render conditions on, never re-described from scratch:
 coverage and continuity (a wide, a close, the reverse; hold the eyeline); the agent then calls
 `generate_microshot` for the storyboard and `start_scene_video` to animate it.
 
-![A 3-panel micro-shot storyboard for one scene](media/choice-storyboard-s1.png)
+![A 3-panel micro-shot storyboard — SHOT 1 / 2 / 3 of one scene, same cast and set across all three](media/choice-storyboard-3shot.png)
 
 <video controls preload="metadata" src="media/choice-scene-1.mp4" style="width:100%"></video>
 
@@ -156,9 +156,16 @@ Nothing is hardcoded on the client. After the handshake it asks:
 - `prompts/list` → user-invokable templates.
 
 So adding a tool on the server surfaces it to *every* client with no client change — this is the
-**M×N → M+N** collapse: build a capability once, every agent discovers it. Servers can also emit
-`notifications/tools/list_changed` so a long-lived client re-discovers a toolset that changed
-mid-session.
+**M×N → M+N** collapse: build a capability once, every agent discovers it.
+
+**And it keeps paying off after day one: the API side can change without touching the agent.** The
+handshake and discovery re-run on *every* connection, so when you add a tool, rename an argument,
+tighten an output schema, or even bump the negotiated protocol version on the server, each client
+picks the change up on its next connect — no agent redeploy, no consumer code edit, no coordinated
+release across teams. Provider and consumer version *independently*. And for a client that's already
+connected, the server emits `notifications/tools/list_changed` to force an immediate re-discovery, so
+even a long-lived session stays current. That's the operational half of the collapse — not just
+*build* the capability once, but *evolve* it freely afterward while every agent keeps working.
 
 ### Transports: stdio vs Streamable HTTP
 

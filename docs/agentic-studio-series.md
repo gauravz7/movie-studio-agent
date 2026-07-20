@@ -78,7 +78,7 @@ Per scene, a people-free **set plate** and a **3-panel micro-shot** storyboard (
 
 <div class="gallery">
 <figure><img src="media/choice-plate-s1.jpg" alt="set plate"><figcaption>Scene 1 — establishing set plate</figcaption></figure>
-<figure><img src="media/choice-storyboard-s1.png" alt="micro-shot storyboard"><figcaption>Scene 1 — 3-panel micro-shot</figcaption></figure>
+<figure><img src="media/choice-storyboard-3shot.png" alt="micro-shot storyboard"><figcaption>3-panel micro-shot — SHOT 1 / 2 / 3</figcaption></figure>
 </div>
 
 …then each scene is animated into a continuous clip — **the four final videos**:

@@ -21,7 +21,7 @@ Three invariants carry the weight. Each is a concrete engineering problem with a
 and each gets harder — not easier — as the render function improves, because a sharper render makes an
 inconsistency *more* obvious, not less.
 
-![Three shots of one scene with the same characters, set, and screen direction — the product of all three invariants holding at once](media/choice-storyboard-s1.png)
+![Three shots of one scene with the same characters, set, and screen direction — the product of all three invariants holding at once](media/choice-storyboard-3shot.png)
 
 *What "the product" looks like: three framings of one scene where identity, continuity, and the world
 all hold. No single render gives you this — it's the invariants below, enforced together.*

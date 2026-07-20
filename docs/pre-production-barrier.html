@@ -241,11 +241,11 @@ sequenceDiagram
     autonumber
     actor U as User
     participant H as Agent (Gemini LLM)
-    participant SK as Skills runtime<br/>(SkillToolset, in-agent)
-    participant S as movie-mcp<br/>(over Streamable HTTP)
-    participant G as film_grammar<br/>(deterministic)
-    participant NB as nano-banana<br/>(Vertex AI)
-    participant B as Bible<br/>(per-user JSON)
+    participant SK as Skills runtime (SkillToolset, in-agent)
+    participant S as movie-mcp (over Streamable HTTP)
+    participant G as film_grammar (deterministic)
+    participant NB as nano-banana (Vertex AI)
+    participant B as Bible (per-user JSON)
 
     rect rgb(244,247,252)
     Note over H,S: Wire-up once — MCP handshake; Skills L1 metadata resident

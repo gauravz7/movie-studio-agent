@@ -22,16 +22,17 @@ cloudbuild.*    Cloud Build configs for the two repo-root-context images
 ## 1. What is this? (blog / docs)
 
 The design story — why an agent + Skills + MCP, the "pre-production barrier," and the moat — is written
-up as a companion blog:
+up as a blog, **bundled in this repo** (`docs/`) so it renders on GitHub with no external hosting:
 
-- **Series index:** https://gauravz7.github.io/learn-mcp/
-- **Part 1 — the thesis:** https://gauravz7.github.io/learn-mcp/part-1-thesis.html
-- **Part 3 — the moat:** https://gauravz7.github.io/learn-mcp/part-3-moat.html
-- **Pre-production barrier:** https://gauravz7.github.io/learn-mcp/pre-production-barrier.html
-- **Agentic studio series:** https://gauravz7.github.io/learn-mcp/agentic-studio-series.html
+- **[Agentic studio series](docs/agentic-studio-series.md)** — the overview of this project.
+- **[Part 1 — the thesis](docs/part-1-thesis.md)** — why an agentic studio, and the bet.
+- **[Part 3 — the moat](docs/part-3-moat.md)** — what's defensible.
+- **[The pre-production barrier](docs/pre-production-barrier.md)** — the problem this solves.
+- **[MCP & Skills primer](docs/mcp-and-skills.md)** — the two standards, for leaders then builders.
 
-(Source markdown + a full MCP primer live in the companion [`learn-mcp`](https://github.com/gauravz7/learn-mcp)
-repo, which this project grew out of.)
+> These links are relative Markdown files in this repo — click them right here on GitHub. (The same
+> posts are also published as HTML in the companion [`learn-mcp`](https://github.com/gauravz7/learn-mcp)
+> repo's GitHub Pages, once that site rebuilds.)
 
 ---
 

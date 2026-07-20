@@ -241,55 +241,55 @@ sequenceDiagram
     autonumber
     actor U as User
     participant H as Agent (Gemini LLM)
-    participant SK as Skills runtime&lt;br/&gt;(SkillToolset, in-agent)
-    participant S as movie-mcp&lt;br/&gt;(over Streamable HTTP)
-    participant G as film_grammar&lt;br/&gt;(deterministic)
-    participant NB as nano-banana&lt;br/&gt;(Vertex AI)
-    participant B as Bible&lt;br/&gt;(per-user JSON)
+    participant SK as Skills runtime<br/>(SkillToolset, in-agent)
+    participant S as movie-mcp<br/>(over Streamable HTTP)
+    participant G as film_grammar<br/>(deterministic)
+    participant NB as nano-banana<br/>(Vertex AI)
+    participant B as Bible<br/>(per-user JSON)
 
     rect rgb(244,247,252)
     Note over H,S: Wire-up once — MCP handshake; Skills L1 metadata resident
-    H-&gt;&gt;S: initialize + tools/list
-    S--&gt;&gt;H: tool schemas (plan_scene, generate_shot, …)
+    H->>S: initialize + tools/list
+    S-->>H: tool schemas (plan_scene, generate_shot, …)
     Note over H,SK: L1: skill names/descriptions already in context
     end
 
-    U-&gt;&gt;H: &quot;Shoot scene 3 — the kid looks up at the galaxy&quot;
+    U->>H: "Shoot scene 3 — the kid looks up at the galaxy"
 
     rect rgb(245,244,252)
     Note over H,SK: KNOW-HOW loads in-process (no network) — progressive disclosure
-    H-&gt;&gt;SK: load_skill film-director [L2 workflow]
-    SK--&gt;&gt;H: decision procedure (coverage, camera, anchors)
+    H->>SK: load_skill film-director [L2 workflow]
+    SK-->>H: decision procedure (coverage, camera, anchors)
     opt rules needed
-        H-&gt;&gt;SK: load_skill_resource continuity-rules.md [L3]
-        SK--&gt;&gt;H: [ENFORCED] rule list (R1/R3/R4/R7/R14/R19)
+        H->>SK: load_skill_resource continuity-rules.md [L3]
+        SK-->>H: [ENFORCED] rule list (R1/R3/R4/R7/R14/R19)
     end
     Note over H: LLM emits a ShotPlan JSON per the skill
     end
 
     rect rgb(244,252,244)
     Note over H,B: CAPABILITY over the wire — validated, then rendered
-    H-&gt;&gt;S: tools/call plan_scene(ShotPlan)
-    S-&gt;&gt;G: validate_plan(plan)
+    H->>S: tools/call plan_scene(ShotPlan)
+    S->>G: validate_plan(plan)
     alt zero error-severity violations
-        G--&gt;&gt;S: [] (warns allowed)
-        S-&gt;&gt;B: persist shots
-        S--&gt;&gt;H: {scene_id, shots}
-        H-&gt;&gt;S: tools/call generate_shot(scene_id, shot_id)
-        S-&gt;&gt;NB: compose from style plate + character refs
-        NB--&gt;&gt;S: PNG bytes
-        S-&gt;&gt;B: save + qc_ok/qc_score
-        S--&gt;&gt;H: resource_uri movie://… (a link, NOT bytes)
+        G-->>S: [] (warns allowed)
+        S->>B: persist shots
+        S-->>H: {scene_id, shots}
+        H->>S: tools/call generate_shot(scene_id, shot_id)
+        S->>NB: compose from style plate + character refs
+        NB-->>S: PNG bytes
+        S->>B: save + qc_ok/qc_score
+        S-->>H: resource_uri movie://… (a link, NOT bytes)
     else has error violations
-        G--&gt;&gt;S: [R1 line cross, R3 eyeline, …]
-        S--&gt;&gt;H: rejected + violations
+        G-->>S: [R1 line cross, R3 eyeline, …]
+        S-->>H: rejected + violations
         Note over H: re-block via skill, resend — no frame was rendered
     end
     end
 
-    H-&gt;&gt;S: resources/read movie://… (bytes on demand only)
-    S--&gt;&gt;H: PNG bytes
-    H--&gt;&gt;U: &quot;Scene 3 keyframe: movie://…&quot;
+    H->>S: resources/read movie://… (bytes on demand only)
+    S-->>H: PNG bytes
+    H-->>U: "Scene 3 keyframe: movie://…"
 
 </pre>
 <p>Read the diagram as three bands. The <strong>blue</strong> band happens once — the MCP handshake, and Skill L1
@@ -320,23 +320,23 @@ sequenceDiagram
     participant NB as nano-banana
     participant B as Bible
 
-    U-&gt;&gt;H: &quot;Galaxy over a remote town — a kid who wants the stars&quot;
+    U->>H: "Galaxy over a remote town — a kid who wants the stars"
 
     rect rgb(245,244,252)
     Note over H,B: PRE-PRODUCTION — sequential barrier (cheap: text + a few anchors)
-    H-&gt;&gt;SK: load_skill(&quot;script-developer&quot;)
-    SK--&gt;&gt;H: clarify + treatment procedure
+    H->>SK: load_skill("script-developer")
+    SK-->>H: clarify + treatment procedure
     Note over H: LLM emits Treatment{logline, scenes[], cast[]}
-    H-&gt;&gt;S: create_project
-    S-&gt;&gt;B: write bible → project_id
-    H-&gt;&gt;S: generate_style_ref
-    S-&gt;&gt;NB: ONE global look anchor (town night + galaxy palette)
-    NB--&gt;&gt;S: PNG
-    S-&gt;&gt;B: StyleRef
+    H->>S: create_project
+    S->>B: write bible → project_id
+    H->>S: generate_style_ref
+    S->>NB: ONE global look anchor (town night + galaxy palette)
+    NB-->>S: PNG
+    S->>B: StyleRef
     loop each character in cast
-        H-&gt;&gt;S: add_character
-        S-&gt;&gt;NB: reference sheet
-        S-&gt;&gt;B: CharacterSheet{ref_uri} (+ QC)
+        H->>S: add_character
+        S->>NB: reference sheet
+        S->>B: CharacterSheet{ref_uri} (+ QC)
     end
     end
 
@@ -345,29 +345,29 @@ sequenceDiagram
     rect rgb(244,252,244)
     Note over H,B: PHOTOGRAPHY — fan-out; scenes independent now (second unit)
     par scene 1
-        H-&gt;&gt;S: establish_scene → plan_scene
-        S-&gt;&gt;G: validate_plan
-        G--&gt;&gt;S: [] ok
-        S-&gt;&gt;NB: generate_shot (from plate + refs)
-        S-&gt;&gt;B: shot + resource_uri
+        H->>S: establish_scene → plan_scene
+        S->>G: validate_plan
+        G-->>S: [] ok
+        S->>NB: generate_shot (from plate + refs)
+        S->>B: shot + resource_uri
     and scene 2
-        H-&gt;&gt;S: establish_scene → plan_scene
-        S-&gt;&gt;G: validate_plan
-        G--&gt;&gt;S: [R3 eyeline] ← gaze-to-galaxy
+        H->>S: establish_scene → plan_scene
+        S->>G: validate_plan
+        G-->>S: [R3 eyeline] ← gaze-to-galaxy
         Note over H: re-block via skill, resend (no render spent)
-        S-&gt;&gt;NB: generate_shot
-        S-&gt;&gt;B: shot + resource_uri
+        S->>NB: generate_shot
+        S->>B: shot + resource_uri
     and scene 3
-        H-&gt;&gt;S: establish_scene → plan_scene → generate_shot
-        S-&gt;&gt;B: shot + resource_uri
+        H->>S: establish_scene → plan_scene → generate_shot
+        S->>B: shot + resource_uri
     end
     end
 
     rect rgb(244,247,252)
     Note over H,B: POST — sequential join
-    H-&gt;&gt;S: list_project_assets
-    S--&gt;&gt;H: ResourceLinks (movie://…)
-    H--&gt;&gt;U: dailies — one keyframe per scene
+    H->>S: list_project_assets
+    S-->>H: ResourceLinks (movie://…)
+    H-->>U: dailies — one keyframe per scene
     end
 
 </pre>

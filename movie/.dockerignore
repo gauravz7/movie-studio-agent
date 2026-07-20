@@ -1,0 +1,13 @@
+.venv/
+**/.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+uv.lock
+data/
+generated/
+# ad-hoc pipeline drivers / smoke tests — not part of the server
+cinderella.py
+witch_broom.py
+test_local.py
+test_video.py

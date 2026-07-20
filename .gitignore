@@ -1,0 +1,28 @@
+# Python / tooling
+.venv/
+**/.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+.adk/
+**/.adk/
+.DS_Store
+
+# Regenerable local state (per-user bibles + generated media)
+**/data/
+**/generated/
+
+# Persisted ADK session store
+*.db
+movie_studio/sessions.db
+
+# Secrets / credentials — never commit
+*.json.key
+**/service-account*.json
+**/*credential*
+**/*secret*
+.env
+.env.*
+*.pem
+*.key
+*token*

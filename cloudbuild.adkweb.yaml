@@ -1,0 +1,11 @@
+# Builds the movie-adk-web image from the REPO ROOT context (needs movie_agent/ + movie/skills/).
+# Usage:
+#   gcloud builds submit --config cloudbuild.adkweb.yaml \
+#     --substitutions _IMAGE=REGION-docker.pkg.dev/PROJECT/REPO/movie-adk-web:latest .
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "${_IMAGE}", "-f", "movie_agent/Dockerfile", "."]
+images:
+  - "${_IMAGE}"
+options:
+  logging: CLOUD_LOGGING_ONLY

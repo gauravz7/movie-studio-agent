@@ -1,0 +1,13 @@
+[project]
+name = "movie-studio"
+version = "0.1.0"
+description = "A 3D chat UI for the movie-director ADK agent (hosts the agent + media proxy)."
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "google-adk>=2.4.0",
+    "mcp>=1.28.0",
+    "sqlalchemy>=2.0.51",
+    "aiosqlite>=0.22.1",
+]

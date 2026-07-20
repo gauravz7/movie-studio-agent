@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Movie Studio · AI Director</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <!-- animated cinematic depth backdrop -->
+  <div class="aurora" aria-hidden="true">
+    <span class="orb orb-a"></span><span class="orb orb-b"></span><span class="orb orb-c"></span>
+    <div class="grid"></div>
+  </div>
+
+  <header class="topbar glass">
+    <div class="brand">
+      <svg class="brand-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 5h16v14H4z" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M4 9h16M9 5v4M15 5v4M9 19v-4M15 19v-4" stroke="currentColor" stroke-width="1.5"/>
+      </svg>
+      <div>
+        <h1>Movie&nbsp;Studio</h1>
+        <p class="sub">collaborate with your AI director</p>
+      </div>
+    </div>
+    <div class="status">
+      <span id="dot" class="dot"></span><span id="statusText">connecting…</span>
+      <button id="userChip" class="user-chip" hidden title="Sign out"></button>
+    </div>
+  </header>
+
+  <!-- LDAP login gate (no auth — just an identity / workspace key) -->
+  <div id="login" class="login-overlay" hidden>
+    <form id="loginForm" class="login-card glass">
+      <h2>Sign in</h2>
+      <p class="sub">Enter your LDAP to load your sessions &amp; generations</p>
+      <input id="ldapInput" type="text" placeholder="e.g. jdoe" autocomplete="username" autofocus />
+      <button type="submit" class="login-btn">Continue</button>
+    </form>
+  </div>
+
+  <main class="layout">
+    <!-- chat -->
+    <section class="chat-col glass" aria-label="Conversation">
+      <div id="sessionbar" class="sessionbar">
+        <div id="sessionList" class="session-list" role="tablist" aria-label="Your sessions"></div>
+        <button id="newSession" class="ghost small" type="button" title="Start a parallel session">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          New
+        </button>
+        <button id="uploadBtn" class="ghost small" type="button" title="Upload your own character or prop image">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 16V4m0 0l-5 5m5-5l5 5M5 20h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Upload
+        </button>
+      </div>
+      <div id="feed" class="feed" role="log" aria-live="polite"></div>
+      <form id="composer" class="composer">
+        <textarea id="input" rows="1" placeholder="Describe your film, or say 'auto mode, photorealistic, a 2-scene story about…'" autocomplete="off"></textarea>
+        <button id="send" class="send" type="submit" aria-label="Send message">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12l16-8-6 8 6 8-16-8z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        </button>
+      </form>
+    </section>
+
+    <!-- gallery rail -->
+    <aside class="rail glass" aria-label="Project panel">
+      <div class="rail-head">
+        <div class="tabs">
+          <button id="tabGallery" class="tab active" type="button">Gallery</button>
+          <button id="tabActivity" class="tab" type="button">Activity</button>
+        </div>
+        <button id="exportAll" class="ghost" type="button" disabled>
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Export all
+        </button>
+      </div>
+      <div id="gallery" class="gallery">
+        <p class="empty">Generated frames, clips &amp; scores appear here.</p>
+      </div>
+      <div id="activity" class="activity" hidden>
+        <p class="empty">The director's steps — skills loaded, tools called, results — stream here live.</p>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Upload a character / prop (optional — coexists with AI generation) -->
+  <div id="uploadModal" class="login-overlay" hidden>
+    <form id="uploadForm" class="login-card glass">
+      <h2>Upload asset</h2>
+      <p class="sub">Bring your own <b>character</b> or <b>prop</b> into this project</p>
+      <select id="uploadKind" class="up-field">
+        <option value="character">Character</option>
+        <option value="prop">Prop</option>
+      </select>
+      <input id="uploadName" class="up-field" type="text" placeholder="Name (e.g. Rex the dog)" />
+      <input id="uploadFile" class="up-field" type="file" accept="image/png,image/jpeg,image/webp" />
+      <button type="submit" class="login-btn">Upload</button>
+      <button type="button" id="uploadCancel" class="ghost small">Cancel</button>
+      <p id="uploadMsg" class="up-msg"></p>
+    </form>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

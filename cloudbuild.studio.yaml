@@ -1,0 +1,11 @@
+# Builds the movie-studio image from the REPO ROOT context (needs movie_agent/ + movie/skills/).
+# Usage:
+#   gcloud builds submit --config cloudbuild.studio.yaml \
+#     --substitutions _IMAGE=REGION-docker.pkg.dev/PROJECT/REPO/movie-studio:latest .
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "${_IMAGE}", "-f", "movie_studio/Dockerfile", "."]
+images:
+  - "${_IMAGE}"
+options:
+  logging: CLOUD_LOGGING_ONLY

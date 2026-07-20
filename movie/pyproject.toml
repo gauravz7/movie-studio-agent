@@ -1,0 +1,10 @@
+[project]
+name = "movie-mcp"
+version = "0.1.0"
+description = "MCP server for AI movie production (bible, characters, shot planning, film-grammar, keyframes)"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp[cli]>=1.2.0",
+    "google-genai>=0.3.0",
+    "pydantic>=2.0",
+]

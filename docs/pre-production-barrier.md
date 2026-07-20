@@ -1,6 +1,6 @@
 # Part 2 · Barrier, Fan-out, Join — the architecture of a creative agent
 
-*Part 2 of **[The Agentic Studio](agentic-studio-series.html)**. The studio is a scheduler over
+*Part 2 of **[The Agentic Studio](agentic-studio-series.md)**. The studio is a scheduler over
 stochastic renders; this is how the scheduler is built. One decision dominates the design, and it
 happens **before any GPU-second is spent**: a short, strictly ordered barrier — treatment, look,
 cast — that every downstream branch conditions on. Lock it and N scenes fan out in parallel, cheaply

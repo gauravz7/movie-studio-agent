@@ -1,6 +1,6 @@
 # Part 1 · The Studio Is a Distributed System
 
-*Part 1 of **[The Agentic Studio](agentic-studio-series.html)**. The disruption in multimedia is not
+*Part 1 of **[The Agentic Studio](agentic-studio-series.md)**. The disruption in multimedia is not
 a better render function. It is the coordination layer around one — the scheduler, the state store,
 and the invariants that force N stochastic outputs to agree. This part is the argument for why that
 layer is an agent, and why it is buildable now.*
@@ -93,10 +93,10 @@ the render function. You are the thing it plugs into.
 
 ## What the rest of the series does
 
-- **Part 2 — [Barrier, Fan-out, Join](pre-production-barrier.html):** the architecture in full. The
+- **Part 2 — [Barrier, Fan-out, Join](pre-production-barrier.md):** the architecture in full. The
   ordering constraint that dominates the design, the exact skill+MCP call path, the deterministic
   gate + critic loop, and the context economics that let scenes fan out in parallel.
-- **Part 3 — [Consistency Is the Product](part-3-moat.html):** the invariants taken seriously —
+- **Part 3 — [Consistency Is the Product](part-3-moat.md):** the invariants taken seriously —
   identity across shots, continuity across scenes, cross-domain compositing — plus the unit economics
   that drive the marginal cost of a scene toward zero.
 
@@ -105,4 +105,4 @@ with one.**
 
 ---
 
-*Built on a real MCP + Skills film-production pipeline. Foundations: **[MCP and Skills](index.html)**.*
+*Built on a real MCP + Skills film-production pipeline. Foundations: **[MCP and Skills](mcp-and-skills.md)**.*

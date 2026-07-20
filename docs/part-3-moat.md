@@ -1,6 +1,6 @@
 # Part 3 · Consistency Is the Product
 
-*Part 3 of **[The Agentic Studio](agentic-studio-series.html)**. Anyone can generate a clip. The moat
+*Part 3 of **[The Agentic Studio](agentic-studio-series.md)**. Anyone can generate a clip. The moat
 is making a thousand clips that agree — on a face, a set, a light, a line of action — and doing it
 cheaply enough that the marginal scene approaches free. This part is about the invariants that are
 hard on purpose, and the unit economics that follow from getting them right.*
@@ -143,9 +143,9 @@ generalizes past keyframes:
 
 ## The series, closed
 
-- **[Part 1 — The Studio Is a Distributed System](part-1-thesis.html):** why the moat is the
+- **[Part 1 — The Studio Is a Distributed System](part-1-thesis.md):** why the moat is the
   orchestration layer, not the render function.
-- **[Part 2 — Barrier, Fan-out, Join](pre-production-barrier.html):** the architecture that produces
+- **[Part 2 — Barrier, Fan-out, Join](pre-production-barrier.md):** the architecture that produces
   the artifacts these invariants defend.
 - **Part 3 — this one:** the invariants themselves, the loop that enforces them, and the economics
   that make consistency cheap.
@@ -155,4 +155,4 @@ the thousand around it — and that agreement, enforced by state the model never
 
 ---
 
-*Built on a real MCP + Skills film-production pipeline. Foundations: **[MCP and Skills](index.html)**.*
+*Built on a real MCP + Skills film-production pipeline. Foundations: **[MCP and Skills](mcp-and-skills.md)**.*

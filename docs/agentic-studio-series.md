@@ -102,22 +102,22 @@ studio is an *agent*, not a bigger model.
 For leaders and architects. Why the next generation of multimedia is orchestration, not generation;
 the render-function-vs-studio distinction; and why MCP + Skills + cheap inference make the
 coordination layer buildable now.
-→ **[Read Part 1 →](part-1-thesis.html)**
+→ **[Read Part 1 →](part-1-thesis.md)**
 
 ### Part 2 — The Architecture: *Barrier, Fan-out, Join*
 For builders. The load-bearing decision — the **pre-production barrier** — and the full skill+MCP
 call path, with sequence diagrams. Deterministic gate plus critic loop as the reliability spine, and
 the context economics that make the fan-out scale.
-→ **[Read Part 2 →](pre-production-barrier.html)**
+→ **[Read Part 2 →](pre-production-barrier.md)**
 
 ### Part 3 — The Moat: *Consistency Is the Product*
 The invariants above, taken seriously: identity across shots, continuity across scenes,
 cross-domain compositing, and the unit economics ($/scene, $/QC retry, $/second of video) that make
 the marginal cost of a scene approach zero. Where it goes: video and sound as the same pipeline,
 human-in-the-loop as direction not babysitting.
-→ **[Read Part 3 →](part-3-moat.html)**
+→ **[Read Part 3 →](part-3-moat.md)**
 
 ---
 
 *Built on a real MCP + Skills film-production pipeline. The foundational piece on the two standards
-is **[MCP and Skills](index.html)**.*
+is **[MCP and Skills](mcp-and-skills.md)**.*

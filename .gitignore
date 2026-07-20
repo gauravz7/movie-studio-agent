@@ -26,3 +26,6 @@ movie_studio/sessions.db
 *.pem
 *.key
 *token*
+
+# Large raw screen recordings (transcode to docs/media/*.mp4 instead)
+*.mov

@@ -96,6 +96,42 @@ studio is an *agent*, not a bigger model.
 
 ---
 
+## See it in action — *The Choice*
+
+**A quick walkthrough of Movie Studio** — the chat UI, the live activity panel, and a scene coming
+together end to end:
+
+<video controls preload="metadata" src="media/studio-walkthrough.mp4" style="width:100%"></video>
+
+Below, the assets behind a photorealistic short built entirely by the studio (cast → style →
+storyboards → video). The global **style reference** and the three **character sheets** that anchor
+identity across every shot:
+
+<div class="gallery">
+<figure><img src="media/choice-style.jpg" alt="style reference"><figcaption>Style reference — the global look</figcaption></figure>
+<figure><img src="media/choice-arthur.png" alt="Arthur character sheet"><figcaption>Arthur — reference sheet</figcaption></figure>
+<figure><img src="media/choice-martha.png" alt="Martha character sheet"><figcaption>Martha — reference sheet</figcaption></figure>
+<figure><img src="media/choice-buddy.png" alt="Buddy character sheet"><figcaption>Buddy — reference sheet</figcaption></figure>
+</div>
+
+Per scene, a people-free **set plate** and a **3-panel micro-shot** storyboard (the per-scene deliverable):
+
+<div class="gallery">
+<figure><img src="media/choice-plate-s1.jpg" alt="set plate"><figcaption>Scene 1 — establishing set plate</figcaption></figure>
+<figure><img src="media/choice-storyboard-s1.png" alt="micro-shot storyboard"><figcaption>Scene 1 — 3-panel micro-shot</figcaption></figure>
+</div>
+
+…then each scene is animated into a continuous clip — **the four final videos**:
+
+<div class="gallery">
+<figure><video controls preload="metadata" src="media/choice-scene-1.mp4"></video><figcaption>Scene 1</figcaption></figure>
+<figure><video controls preload="metadata" src="media/choice-scene-2.mp4"></video><figcaption>Scene 2</figcaption></figure>
+<figure><video controls preload="metadata" src="media/choice-scene-3.mp4"></video><figcaption>Scene 3</figcaption></figure>
+<figure><video controls preload="metadata" src="media/choice-scene-4.mp4"></video><figcaption>Scene 4</figcaption></figure>
+</div>
+
+---
+
 ## The series
 
 ### Part 1 — The Thesis: *The Studio Is a Distributed System*

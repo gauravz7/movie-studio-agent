@@ -214,6 +214,38 @@ So a studio can carry a `script-developer`, a `film-director`, and a `film-edito
 almost nothing for the ones not currently firing — like a well-indexed manual whose table of contents
 stays on the desk while the chapters stay on the shelf until needed.
 
+### The numbers (measured on this studio's three skills)
+
+This isn't hand-waving — here is the actual context cost of the three skills in this repo (words → tokens
+at the usual ≈1.3 tokens/word):
+
+| What's loaded | Words | ≈ Tokens | When it's paid |
+|---|---|---|---|
+| **L1** — three skills' one-line descriptions | ~90 | **~120** | *every turn* (resident) |
+| **L2** — one skill's full workflow | ~500 | ~650 | only when that skill fires |
+| **L3** — that skill's reference tables | up to ~1,200 | up to ~1,550 | only when L2 drills in |
+| **Naïve baseline** — all craft inlined in the system prompt | ~3,500 | **~4,600** | *every turn* |
+
+Read the two bold rows against each other. Progressive disclosure keeps **~120 tokens** resident
+instead of the **~4,600** you'd pay by stuffing every workflow and rule table into one system prompt —
+a **~38× reduction in always-on context**, on every single turn, before the model has done any work.
+The full craft is still *available*; it just isn't *resident*. When the director actually needs the
+continuity rules, it pays ~2,200 tokens to open that one skill to L3 — for that turn, for that skill,
+and nothing for the other two.
+
+Two properties make this scale where a monolithic prompt doesn't:
+
+- **The resident cost is O(number of skills' one-liners), not O(total craft).** Adding a fourth skill
+  costs **~40 tokens** resident (its description), not the ~1,000+ tokens of its body. Ten skills is
+  still only a few hundred resident tokens; ten skills inlined is a ~15k-token tax on every turn.
+- **The expensive part is paid on demand and released.** A monolithic prompt pays for the 180°-line
+  tables on the turn you write dialogue and on the turn you do nothing — identically. Skills pay only
+  when the rule is about to be used, which is a tiny fraction of turns.
+
+The context you *don't* spend on dormant instructions is context left for the actual task — the story,
+the shot history, the critic's feedback. On a long multi-scene run that headroom is the difference
+between the agent remembering scene 1 by the time it plans scene 4 and quietly forgetting it.
+
 The division of labor is the point: **a Skill decides *how*; it calls an MCP tool for the *what*.**
 The `film-director` skill holds the decision procedure (map emotion → lens, keep the 180° line) and
 emits a shot plan; the *rendering* is an MCP call. Swap the render backend and the craft is untouched;
@@ -266,15 +298,22 @@ The theory above is clean. Shipping taught the corollaries:
   handle. This is what makes the parallel fan-out affordable.
 - **Stateless on serverless, or the toolset silently empties.** The scariest bugs weren't crashes —
   they were the agent quietly losing its tools and improvising.
-- **Wardrobe lives in the reference sheet, not the prompt.** Asking for "a blue dress" in a scene does
-  nothing when compositing copies wardrobe from the sheet. To change a look, re-style the *anchor*,
-  then re-render. Identity is a stored artifact, not a sentence.
-- **Compose identity one character at a time.** Pass a crowd of reference images at once and the model
-  drops or invents people. The counterintuitive constraint (≤2 refs per call) is load-bearing.
-- **"Present" ≠ "speaking."** A scene's cast (who's in frame) is a different question from who has a
-  line — and a *realistic animal can't have a line at all*. Both are checks, not assumptions.
-- **Progressive disclosure keeps know-how ~free until it fires.** You can afford a lot of craft when
-  most of it stays on the shelf.
+- **Wardrobe lives in the reference sheet, not the prompt.** Every shot is composited *from* a
+  character's stored reference sheet — an image — so the render copies whatever that sheet shows.
+  Typing "now in a blue dress" into the *scene* prompt does nothing: the sheet still shows the old
+  outfit, and the sheet wins. To actually change a look you edit the **anchor** itself — re-style the
+  reference sheet, save it, then re-render the shots from the new sheet. A character's appearance is a
+  stored artifact you *edit*, not a sentence you *rewrite per scene*.
+- **Compose identity one character at a time.** Keyframes are built by editing characters into the
+  empty set plate one by one, with at most ~2 reference images per model call. It is tempting to pass
+  every sheet at once ("here are five characters, put them in the room") — but when you do, the model
+  reliably **drops someone or invents a stranger**. Feeding one identity per call, ≤2 references in
+  play, is what keeps every character both *present* and *recognizable*. The constraint reads like an
+  inefficiency; it's the thing that makes multi-character shots work at all.
+- **Progressive disclosure keeps know-how ~free until it fires.** Each dormant skill costs ~a line of
+  context, so you can carry many and pay for a skill's full workflow only in the turns it actually runs
+  (the ~38× resident-context saving measured above). More craft doesn't mean a heavier every-turn
+  prompt — which is exactly what lets the studio keep growing its playbook.
 
 None of these are model problems. They're **state, ordering, and validation** problems — which is the
 whole thesis: the durable, defensible layer is the *orchestrator*, and MCP + Skills are the two

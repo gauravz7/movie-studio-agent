@@ -70,6 +70,23 @@ layers and compose</strong> — they aren't rivals:</p>
 do something well).</strong> They compose — a Skill's instructions can say "call <code>generate_image</code>," and that
 tool lives on an MCP server. And the dividing line that never moves is <strong>where the code runs</strong>: the
 Skill executes <em>in the agent</em>, the tool executes <em>on the server</em>. Wire them together; don't merge them.</p>
+<p><strong>The M×N → M+N collapse, counted.</strong> Say you run <strong>4 AI apps</strong> (a Gemini agent, Claude Desktop, an
+IDE assistant, a Slack bot) and want them to share <strong>3 capabilities</strong> (image generation, video, a
+story-bible database).</p>
+<ul>
+<li><em>Without a protocol,</em> every app hand-writes glue for every capability in that app's own
+  function-calling dialect: 4 × 3 = <strong>12 bespoke integrations</strong>. Add a 4th capability (music) and you
+  write it <strong>4 times</strong>, once per app. Add a 5th app and you re-wire <strong>3 capabilities</strong> into it. Cost
+  grows as <strong>M × N</strong> — the integration explosion.</li>
+<li><em>With MCP,</em> each capability is <strong>one server</strong> (3) and each app is <strong>one MCP client</strong> (4) — <strong>7
+  pieces</strong>, each built once. Add a capability → <strong>+1 server</strong>, and all 4 apps <em>discover</em> it through
+  <code>tools/list</code> with zero new glue. Add an app → <strong>+1 client</strong>, and it inherits all 3 capabilities for
+  free. Cost grows as <strong>M + N</strong>.</li>
+</ul>
+<p>That isn't hypothetical here: the single <code>movie-mcp</code> server in this repo is consumed <em>unchanged</em> by
+the ADK director agent (<code>movie_agent</code>), the <code>movie_studio</code> web UI, and <code>adk web</code> — three very
+different hosts, zero per-host tool integration, because discovery does the wiring at runtime. Write a
+new tool on the server and all three light up on their next connection.</p>
 <p>Rule of thumb: one tool in one app you own → just hardcode the API call. The moment a capability must
 be <strong>reused across apps, shared, credentialed, or discovered at runtime</strong> → MCP earns its keep.</p>
 <h2>What it looks like in practice</h2>

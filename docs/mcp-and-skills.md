@@ -61,6 +61,24 @@ do something well).** They compose — a Skill's instructions can say "call `gen
 tool lives on an MCP server. And the dividing line that never moves is **where the code runs**: the
 Skill executes *in the agent*, the tool executes *on the server*. Wire them together; don't merge them.
 
+**The M×N → M+N collapse, counted.** Say you run **4 AI apps** (a Gemini agent, Claude Desktop, an
+IDE assistant, a Slack bot) and want them to share **3 capabilities** (image generation, video, a
+story-bible database).
+
+- *Without a protocol,* every app hand-writes glue for every capability in that app's own
+  function-calling dialect: 4 × 3 = **12 bespoke integrations**. Add a 4th capability (music) and you
+  write it **4 times**, once per app. Add a 5th app and you re-wire **3 capabilities** into it. Cost
+  grows as **M × N** — the integration explosion.
+- *With MCP,* each capability is **one server** (3) and each app is **one MCP client** (4) — **7
+  pieces**, each built once. Add a capability → **+1 server**, and all 4 apps *discover* it through
+  `tools/list` with zero new glue. Add an app → **+1 client**, and it inherits all 3 capabilities for
+  free. Cost grows as **M + N**.
+
+That isn't hypothetical here: the single `movie-mcp` server in this repo is consumed *unchanged* by
+the ADK director agent (`movie_agent`), the `movie_studio` web UI, and `adk web` — three very
+different hosts, zero per-host tool integration, because discovery does the wiring at runtime. Write a
+new tool on the server and all three light up on their next connection.
+
 Rule of thumb: one tool in one app you own → just hardcode the API call. The moment a capability must
 be **reused across apps, shared, credentialed, or discovered at runtime** → MCP earns its keep.
 

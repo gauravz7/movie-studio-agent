@@ -40,7 +40,7 @@ subtly different people, because it has no memory of the last frame and no oblig
 like a film where the lead is recast, slightly, in every scene. Every individual frame can be
 flawless and the movie still falls apart.
 
-![Three shots of one scene — a wide two-shot, a close-up, and the reverse — with the same two characters, set, wardrobe and lighting across all three](images/studio-microshot-3frame.png)
+![Three shots of one scene — a wide two-shot, a close-up, and the reverse — with the same two characters, set, wardrobe and lighting across all three](media/choice-storyboard-s1.png)
 
 *The opposite of a blooper: three shots the studio produced for a single scene — a wide two-shot, her
 close-up, then the reverse angle. Same two people, same room, same wardrobe, same light, consistent

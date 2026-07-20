@@ -244,62 +244,7 @@ root_agent = Agent(name=&quot;movie_director&quot;, model=&quot;gemini-3.5-flash
   well past ADK's 5s default.</li>
 </ul>
 <p>Here's a single scene flowing through both, end to end:</p>
-<pre class="mermaid">
-sequenceDiagram
-    autonumber
-    actor U as User
-    participant H as Agent (Gemini LLM)
-    participant SK as Skills runtime (SkillToolset, in-agent)
-    participant S as movie-mcp (over Streamable HTTP)
-    participant G as film_grammar (deterministic)
-    participant NB as nano-banana (Vertex AI)
-    participant B as Bible (per-user JSON)
-
-    rect rgb(244,247,252)
-    Note over H,S: Wire-up once — MCP handshake; Skills L1 metadata resident
-    H->>S: initialize + tools/list
-    S-->>H: tool schemas (plan_scene, generate_shot, …)
-    Note over H,SK: L1: skill names/descriptions already in context
-    end
-
-    U->>H: "Shoot scene 3 — the kid looks up at the galaxy"
-
-    rect rgb(245,244,252)
-    Note over H,SK: KNOW-HOW loads in-process (no network) — progressive disclosure
-    H->>SK: load_skill film-director [L2 workflow]
-    SK-->>H: decision procedure (coverage, camera, anchors)
-    opt rules needed
-        H->>SK: load_skill_resource continuity-rules.md [L3]
-        SK-->>H: [ENFORCED] rule list (R1/R3/R4/R7/R14/R19)
-    end
-    Note over H: LLM emits a ShotPlan JSON per the skill
-    end
-
-    rect rgb(244,252,244)
-    Note over H,B: CAPABILITY over the wire — validated, then rendered
-    H->>S: tools/call plan_scene(ShotPlan)
-    S->>G: validate_plan(plan)
-    alt zero error-severity violations
-        G-->>S: [] (warns allowed)
-        S->>B: persist shots
-        S-->>H: {scene_id, shots}
-        H->>S: tools/call generate_shot(scene_id, shot_id)
-        S->>NB: compose from style plate + character refs
-        NB-->>S: PNG bytes
-        S->>B: save + qc_ok/qc_score
-        S-->>H: resource_uri movie://… (a link, NOT bytes)
-    else has error violations
-        G-->>S: [R1 line cross, R3 eyeline, …]
-        S-->>H: rejected + violations
-        Note over H: re-block via skill, resend — no frame was rendered
-    end
-    end
-
-    H->>S: resources/read movie://… (bytes on demand only)
-    S-->>H: PNG bytes
-    H-->>U: "Scene 3 keyframe: movie://…"
-
-</pre>
+<p><img alt="The skill + MCP call path — wire-up, know-how (Skills), capability (MCP tools)" src="media/seq-callpath.png" /></p>
 <p>Read the diagram as three bands. The <strong>blue</strong> band happens once — the MCP handshake, and Skill L1
 metadata that's always resident. The <strong>purple</strong> band is know-how loading <em>inside the agent</em> with no
 network hop (L2, then L3 only if the rules are needed). The <strong>green</strong> band is the capability going
@@ -317,68 +262,7 @@ this same sequence conditions on.</p>
 few times <strong>in series</strong> to build the barrier (the shared artifacts), then N times <strong>in parallel</strong>
 once the barrier is locked. The <code>par</code> band below is where the money is spent — and it's only safe to
 run in parallel <em>because</em> everything above the barrier line already agreed on the look and the cast.</p>
-<pre class="mermaid">
-sequenceDiagram
-    autonumber
-    actor U as User
-    participant H as Agent (Gemini LLM)
-    participant SK as Skills runtime
-    participant S as movie-mcp
-    participant G as film_grammar
-    participant NB as nano-banana
-    participant B as Bible
-
-    U->>H: "Galaxy over a remote town — a kid who wants the stars"
-
-    rect rgb(245,244,252)
-    Note over H,B: PRE-PRODUCTION — sequential barrier (cheap: text + a few anchors)
-    H->>SK: load_skill("script-developer")
-    SK-->>H: clarify + treatment procedure
-    Note over H: LLM emits Treatment{logline, scenes[], cast[]}
-    H->>S: create_project
-    S->>B: write bible → project_id
-    H->>S: generate_style_ref
-    S->>NB: ONE global look anchor (town night + galaxy palette)
-    NB-->>S: PNG
-    S->>B: StyleRef
-    loop each character in cast
-        H->>S: add_character
-        S->>NB: reference sheet
-        S->>B: CharacterSheet{ref_uri} (+ QC)
-    end
-    end
-
-    Note over H,B: ── BARRIER ── approve look + cast (INTERACTIVE) / validate (AUTO)
-
-    rect rgb(244,252,244)
-    Note over H,B: PHOTOGRAPHY — fan-out; scenes independent now (second unit)
-    par scene 1
-        H->>S: establish_scene → plan_scene
-        S->>G: validate_plan
-        G-->>S: [] ok
-        S->>NB: generate_shot (from plate + refs)
-        S->>B: shot + resource_uri
-    and scene 2
-        H->>S: establish_scene → plan_scene
-        S->>G: validate_plan
-        G-->>S: [R3 eyeline] ← gaze-to-galaxy
-        Note over H: re-block via skill, resend (no render spent)
-        S->>NB: generate_shot
-        S->>B: shot + resource_uri
-    and scene 3
-        H->>S: establish_scene → plan_scene → generate_shot
-        S->>B: shot + resource_uri
-    end
-    end
-
-    rect rgb(244,247,252)
-    Note over H,B: POST — sequential join
-    H->>S: list_project_assets
-    S-->>H: ResourceLinks (movie://…)
-    H-->>U: dailies — one keyframe per scene
-    end
-
-</pre>
+<p><img alt="Barrier → fan-out → join — the whole pipeline in one picture" src="media/seq-pipeline.png" /></p>
 <p>Three things this picture makes obvious that the prose can't:</p>
 <ul>
 <li><strong>The barrier is short and cheap</strong> (one purple band, a handful of calls) but <strong>everything in the
@@ -405,17 +289,17 @@ plate, the per-scene fan-out (a 3-panel micro-shot), and the join (the animated 
 
 <p><strong>1. The style anchor</strong> (<code>generate_style_ref</code>) — one image that fixes the world's look: palette,
 light, texture. Everything downstream is composed to match it.</p>
-<p><img alt="The style reference: a warm, lamp-lit living room at night, establishing the film's overall look" src="images/studio-style-ref.jpg" /></p>
+<p><img alt="The style reference: a warm, lamp-lit living room at night, establishing the film's overall look" src="media/choice-style.jpg" /></p>
 <p><strong>2. The character sheet</strong> (<code>add_character</code>) — the identity anchor, generated once and reused in every
 shot the character appears in. This is what stops the "recast every scene" problem.</p>
-<p><img alt="A character reference sheet with front, 3/4, profile and back views and a colour key" src="images/studio-character-sheet.png" /></p>
+<p><img alt="A character reference sheet with front, 3/4, profile and back views and a colour key" src="media/choice-arthur.png" /></p>
 <p><strong>3. The set plate</strong> (<code>establish_scene</code>) — the people-free room, lit and dressed. It's rendered once
 per scene and every shot in that scene is composed on top of it, so the space stays put.</p>
-<p><img alt="An empty, morning-lit kitchen set plate with no characters in frame" src="images/studio-set-plate.jpg" /></p>
+<p><img alt="An empty, morning-lit kitchen set plate with no characters in frame" src="media/choice-plate-s1.jpg" /></p>
 <p><strong>4. The micro-shot</strong> (<code>plan_scene</code> → <code>generate_shot</code>) — the scene's coverage, validated for
 continuity, then rendered. Notice the payoff of stages 1–3: the <em>same</em> two characters, the <em>same</em>
 set, consistent screen direction, across three different framings.</p>
-<p><img alt="A three-frame storyboard — wide two-shot, close-up, reverse — with consistent characters and set" src="images/studio-microshot-3frame.png" /></p>
+<p><img alt="A three-frame storyboard — wide two-shot, close-up, reverse — with consistent characters and set" src="media/choice-storyboard-s1.png" /></p>
 <p>That last frame is the whole architecture cashing out: identity from the sheet, world from the style
 anchor, space from the set plate, continuity from the validator — composed into shots that agree.</p>
 <h2>Why the anchor is a single call, on purpose</h2>
@@ -444,4 +328,3 @@ runs once or N times.</p>
 <blockquote>
 <p><strong>Model the crew, not the movie. Then find your barrier before you fan out.</strong></p>
 </blockquote>
-<script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";mermaid.initialize({startOnLoad:true,theme:"neutral"});</script>

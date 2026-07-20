@@ -200,61 +200,7 @@ root_agent = Agent(name="movie_director", model="gemini-3.5-flash",
 
 Here's a single scene flowing through both, end to end:
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor U as User
-    participant H as Agent (Gemini LLM)
-    participant SK as Skills runtime<br/>(SkillToolset, in-agent)
-    participant S as movie-mcp<br/>(over Streamable HTTP)
-    participant G as film_grammar<br/>(deterministic)
-    participant NB as nano-banana<br/>(Vertex AI)
-    participant B as Bible<br/>(per-user JSON)
-
-    rect rgb(244,247,252)
-    Note over H,S: Wire-up once — MCP handshake; Skills L1 metadata resident
-    H->>S: initialize + tools/list
-    S-->>H: tool schemas (plan_scene, generate_shot, …)
-    Note over H,SK: L1: skill names/descriptions already in context
-    end
-
-    U->>H: "Shoot scene 3 — the kid looks up at the galaxy"
-
-    rect rgb(245,244,252)
-    Note over H,SK: KNOW-HOW loads in-process (no network) — progressive disclosure
-    H->>SK: load_skill film-director [L2 workflow]
-    SK-->>H: decision procedure (coverage, camera, anchors)
-    opt rules needed
-        H->>SK: load_skill_resource continuity-rules.md [L3]
-        SK-->>H: [ENFORCED] rule list (R1/R3/R4/R7/R14/R19)
-    end
-    Note over H: LLM emits a ShotPlan JSON per the skill
-    end
-
-    rect rgb(244,252,244)
-    Note over H,B: CAPABILITY over the wire — validated, then rendered
-    H->>S: tools/call plan_scene(ShotPlan)
-    S->>G: validate_plan(plan)
-    alt zero error-severity violations
-        G-->>S: [] (warns allowed)
-        S->>B: persist shots
-        S-->>H: {scene_id, shots}
-        H->>S: tools/call generate_shot(scene_id, shot_id)
-        S->>NB: compose from style plate + character refs
-        NB-->>S: PNG bytes
-        S->>B: save + qc_ok/qc_score
-        S-->>H: resource_uri movie://… (a link, NOT bytes)
-    else has error violations
-        G-->>S: [R1 line cross, R3 eyeline, …]
-        S-->>H: rejected + violations
-        Note over H: re-block via skill, resend — no frame was rendered
-    end
-    end
-
-    H->>S: resources/read movie://… (bytes on demand only)
-    S-->>H: PNG bytes
-    H-->>U: "Scene 3 keyframe: movie://…"
-```
+![The skill + MCP call path — wire-up, know-how (Skills), capability (MCP tools)](media/seq-callpath.png)
 
 Read the diagram as three bands. The **blue** band happens once — the MCP handshake, and Skill L1
 metadata that's always resident. The **purple** band is know-how loading *inside the agent* with no
@@ -277,67 +223,7 @@ few times **in series** to build the barrier (the shared artifacts), then N time
 once the barrier is locked. The `par` band below is where the money is spent — and it's only safe to
 run in parallel *because* everything above the barrier line already agreed on the look and the cast.
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor U as User
-    participant H as Agent (Gemini LLM)
-    participant SK as Skills runtime
-    participant S as movie-mcp
-    participant G as film_grammar
-    participant NB as nano-banana
-    participant B as Bible
-
-    U->>H: "Galaxy over a remote town — a kid who wants the stars"
-
-    rect rgb(245,244,252)
-    Note over H,B: PRE-PRODUCTION — sequential barrier (cheap: text + a few anchors)
-    H->>SK: load_skill("script-developer")
-    SK-->>H: clarify + treatment procedure
-    Note over H: LLM emits Treatment{logline, scenes[], cast[]}
-    H->>S: create_project
-    S->>B: write bible → project_id
-    H->>S: generate_style_ref
-    S->>NB: ONE global look anchor (town night + galaxy palette)
-    NB-->>S: PNG
-    S->>B: StyleRef
-    loop each character in cast
-        H->>S: add_character
-        S->>NB: reference sheet
-        S->>B: CharacterSheet{ref_uri} (+ QC)
-    end
-    end
-
-    Note over H,B: ── BARRIER ── approve look + cast (INTERACTIVE) / validate (AUTO)
-
-    rect rgb(244,252,244)
-    Note over H,B: PHOTOGRAPHY — fan-out; scenes independent now (second unit)
-    par scene 1
-        H->>S: establish_scene → plan_scene
-        S->>G: validate_plan
-        G-->>S: [] ok
-        S->>NB: generate_shot (from plate + refs)
-        S->>B: shot + resource_uri
-    and scene 2
-        H->>S: establish_scene → plan_scene
-        S->>G: validate_plan
-        G-->>S: [R3 eyeline] ← gaze-to-galaxy
-        Note over H: re-block via skill, resend (no render spent)
-        S->>NB: generate_shot
-        S->>B: shot + resource_uri
-    and scene 3
-        H->>S: establish_scene → plan_scene → generate_shot
-        S->>B: shot + resource_uri
-    end
-    end
-
-    rect rgb(244,247,252)
-    Note over H,B: POST — sequential join
-    H->>S: list_project_assets
-    S-->>H: ResourceLinks (movie://…)
-    H-->>U: dailies — one keyframe per scene
-    end
-```
+![Barrier → fan-out → join — the whole pipeline in one picture](media/seq-pipeline.png)
 
 Three things this picture makes obvious that the prose can't:
 
@@ -369,23 +255,23 @@ plate, the per-scene fan-out (a 3-panel micro-shot), and the join (the animated 
 **1. The style anchor** (`generate_style_ref`) — one image that fixes the world's look: palette,
 light, texture. Everything downstream is composed to match it.
 
-![The style reference: a warm, lamp-lit living room at night, establishing the film's overall look](images/studio-style-ref.jpg)
+![The style reference: a warm, lamp-lit living room at night, establishing the film's overall look](media/choice-style.jpg)
 
 **2. The character sheet** (`add_character`) — the identity anchor, generated once and reused in every
 shot the character appears in. This is what stops the "recast every scene" problem.
 
-![A character reference sheet with front, 3/4, profile and back views and a colour key](images/studio-character-sheet.png)
+![A character reference sheet with front, 3/4, profile and back views and a colour key](media/choice-arthur.png)
 
 **3. The set plate** (`establish_scene`) — the people-free room, lit and dressed. It's rendered once
 per scene and every shot in that scene is composed on top of it, so the space stays put.
 
-![An empty, morning-lit kitchen set plate with no characters in frame](images/studio-set-plate.jpg)
+![An empty, morning-lit kitchen set plate with no characters in frame](media/choice-plate-s1.jpg)
 
 **4. The micro-shot** (`plan_scene` → `generate_shot`) — the scene's coverage, validated for
 continuity, then rendered. Notice the payoff of stages 1–3: the *same* two characters, the *same*
 set, consistent screen direction, across three different framings.
 
-![A three-frame storyboard — wide two-shot, close-up, reverse — with consistent characters and set](images/studio-microshot-3frame.png)
+![A three-frame storyboard — wide two-shot, close-up, reverse — with consistent characters and set](media/choice-storyboard-s1.png)
 
 That last frame is the whole architecture cashing out: identity from the sheet, world from the style
 anchor, space from the set plate, continuity from the validator — composed into shots that agree.

@@ -21,7 +21,7 @@ Three invariants carry the weight. Each is a concrete engineering problem with a
 and each gets harder — not easier — as the render function improves, because a sharper render makes an
 inconsistency *more* obvious, not less.
 
-![Three shots of one scene with the same characters, set, and screen direction — the product of all three invariants holding at once](images/studio-microshot-3frame.png)
+![Three shots of one scene with the same characters, set, and screen direction — the product of all three invariants holding at once](media/choice-storyboard-s1.png)
 
 *What "the product" looks like: three framings of one scene where identity, continuity, and the world
 all hold. No single render gives you this — it's the invariants below, enforced together.*
@@ -53,7 +53,7 @@ load-bearing — resist the urge to "optimize" it into a single multi-reference 
 notion of "a person." A single-image check literally cannot tell "the same character" from "a
 character"; the reference is what makes the score mean something.
 
-![The reference sheet the critic scores against: multiple views of one character plus a colour key](images/studio-character-sheet.png)
+![The reference sheet the critic scores against: multiple views of one character plus a colour key](media/choice-arthur.png)
 
 *The reference sheet is both the input to every render and the yardstick the critic judges it by.
 "Does this look like her?" only has an answer because there is a canonical *her* to compare to.*

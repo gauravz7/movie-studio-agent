@@ -42,6 +42,28 @@ re-implemented for an agent.
 > A better *model* is a better director. It still needs the crew (Skills) and the gear (MCP). Scaling
 > the director alone doesn't get you a studio.
 
+## Why a wire protocol at all? (REST vs MCP vs Skills)
+
+Three ways to give an agent more reach. They're constantly conflated, but they sit at **different
+layers and compose** — they aren't rivals:
+
+- **A plain REST API** is *the app calls a service.* It isn't agent-aware: every app that wants its
+  LLM to use the endpoint writes its own glue to describe the tool and translate the model's
+  tool-calls into HTTP. You can move that glue around; you can't delete it.
+- **An MCP server** is *the agent calls a service.* Now the glue *is* the standard — discovery, typed
+  tools, structured I/O, even server→client requests come built in. Write the server once and every
+  MCP host (a Gemini agent, Claude Desktop, an IDE) uses it with no per-app integration.
+- **A Skill** is *the agent gains know-how it runs itself,* inside its own runtime — no server, no
+  network hop.
+
+The one-line split: **MCP adds *connections* (to external systems); Skills add *procedures* (how to
+do something well).** They compose — a Skill's instructions can say "call `generate_image`," and that
+tool lives on an MCP server. And the dividing line that never moves is **where the code runs**: the
+Skill executes *in the agent*, the tool executes *on the server*. Wire them together; don't merge them.
+
+Rule of thumb: one tool in one app you own → just hardcode the API call. The moment a capability must
+be **reused across apps, shared, credentialed, or discovered at runtime** → MCP earns its keep.
+
 ## What it looks like in practice
 
 Three concrete moments from the studio behind ***The Choice*** — a 4-scene photorealistic short the
@@ -83,9 +105,11 @@ That's the whole shape. Now the depth, one layer at a time.
 MCP is a client/server protocol built on **JSON-RPC 2.0**. Your agent (the *host*) runs a **client**;
 each capability provider is a **server**. A server only ever sees its own small conversation — never
 your whole chat, never the other servers — so isolation is structural, not a policy you enforce. A
-server advertises three kinds of things: **tools** (typed functions the model calls), **resources**
-(addressable blobs the client reads on demand, like `movie://user/project/frame.png`), and **prompts**
-(parameterized templates a user invokes).
+server advertises three kinds of things, split by **who decides to use each**:
+
+- **Tools** — the **model** decides to call them (typed functions, like `generate_image`).
+- **Resources** — the **app** decides to read them (addressable blobs, like `movie://user/project/frame.png`).
+- **Prompts** — the **user** decides to run them (parameterized templates — think slash commands).
 
 ### The handshake: protocol + capability negotiation
 
@@ -169,6 +193,23 @@ A few more mechanics that earn their keep:
   unknown tool, bad args — is still a hard JSON-RPC error; a *logic* failure is `isError` so the
   conversation continues.)
 
+### Credentials live on the server — and stay there
+
+Because the capability lives behind the server, so does the credential to run it. The agent never
+holds the Vertex key; it just calls `generate_image`, and the *server* authenticates to the model
+under its **own** identity (a workload identity — no key file baked into the image). That's the
+centralization the film-set analogy promised: the grip truck is wired to the generator; the operator
+just plugs in.
+
+Two independent boundaries fall out, and they must never mix:
+
+1. **Who may use the capability** — enforced at the server's front door (OAuth / platform IAM).
+2. **Whether the server may call the model** — the server's own downstream identity.
+
+The cardinal rule: **never pass the user's token through to the model API.** Minting the downstream
+call under the *server's* identity, not the caller's, is what avoids the classic *confused-deputy*
+leak — and it's why a single audited server, not every client, is where secrets and quota belong.
+
 ### Scaling: the bottleneck isn't your server
 
 At thousands of concurrent users the constraint is almost never the MCP server — it's **model quota**.
@@ -185,10 +226,14 @@ protocol is. Design for that reality:
 
 The server is cheap to scale; the render function is what you budget for.
 
-### Two more field notes
+### A few more field notes
 
 - **Timeouts.** Image generation is ~12 s; the default MCP tool timeout in some clients is 5 s. Set it
   generously (the studio uses 120–180 s) or every render "fails" spuriously.
+- **Treat third-party tool metadata as untrusted.** A server you don't control can smuggle
+  instructions into a tool's description (prompt-injection). Vet a server before you connect it,
+  exactly as you'd vet a dependency — the protocol can't enforce this for you; a good host asks for
+  consent, but the trust decision is yours.
 - **DNS-rebinding protection.** Behind a `*.run.app` host, a server's default localhost-only host
   allowlist rejects every request (HTTP 421) — and, like the stateful-session trap above, it surfaces
   as an *empty toolset*. Disable that specific check when the platform (Cloud Run + IAM) is your real
@@ -245,6 +290,37 @@ Two properties make this scale where a monolithic prompt doesn't:
 The context you *don't* spend on dormant instructions is context left for the actual task — the story,
 the shot history, the critic's feedback. On a long multi-scene run that headroom is the difference
 between the agent remembering scene 1 by the time it plans scene 4 and quietly forgetting it.
+
+### The same law governs capabilities, too
+
+Skills aren't the only thing competing for the window — **MCP tool schemas are resident every turn as
+well.** A host lists a server's tools once and keeps every schema in context whether or not the turn
+uses it (in the sibling `learn-mcp` server, 9 tools ≈ **2,040 tokens, always on**; a single
+richly-typed tool with an `outputSchema` can be ~640 by itself). So the real scaling law is about
+**resident vs on-demand**, and it cuts the same way for tools as for craft:
+
+- **Capabilities (MCP/REST): O(N) always-on** — every schema you expose is paid on every turn.
+- **Skills: O(N) tiny pointers + O(1) on-demand detail** — N one-liners resident; one body loaded
+  when it fires.
+
+Play it forward (≈4 chars/token, measured on this repo's servers):
+
+| Capabilities / skills | All schemas resident (MCP/REST) | Skills (metadata + 1 loaded) | Context saved |
+|---|---|---|---|
+| 5   | ~1,130  | ~380   | ~66% |
+| 50  | ~11,300 | ~2,330 | ~79% |
+| 100 | ~22,600 | ~4,500 | ~80% |
+
+Resident context is re-paid on **every turn of every session**, so it becomes money. At 50
+capabilities, 20-turn sessions, an illustrative $0.30 / 1M input tokens: all-resident ≈
+**$0.068/session** vs progressively disclosed ≈ **$0.014** — about **5×**, or roughly **$68k vs $14k
+per million sessions** from capability-context alone.
+
+Three honest caveats so this isn't oversold: it's only the *capability-context* cost — **the inference
+cost of the actual work (each generated image) is identical** whichever way you wire it; **prompt
+caching** discounts stable resident context to roughly a tenth when enabled; and MCP has its own
+levers (tool filtering, fewer servers). The axis that matters is resident-vs-on-demand, not one vendor
+against another.
 
 The division of labor is the point: **a Skill decides *how*; it calls an MCP tool for the *what*.**
 The `film-director` skill holds the decision procedure (map emotion → lens, keep the 180° line) and

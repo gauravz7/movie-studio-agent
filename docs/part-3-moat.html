@@ -78,11 +78,26 @@ beautiful. These are the famous blooper-reel gaffes — the coffee cup that appe
 actor looking the wrong way after a cut so two people seem to trade seats. This is not a matter of
 taste; it is a set of rules professional script supervisors enforce on set precisely because they are
 easy, invisible mistakes to make.</p>
-<p><strong>The mechanism.</strong> Encode them as a <strong>deterministic validator</strong> over the shot-plan JSON — pure logic,
-no I/O — and gate rendering on it: R7 establish-first, R1 180° line, R3 eyeline, R4 30° jump-cut, R14
-reciprocal OTS height, R19 lens consistency. The plan persists only with <strong>zero error-severity
-violations</strong> (warnings are allowed). The gate runs <em>before</em> a single frame renders, so a continuity
-mistake costs microseconds of CPU, not a GPU render you then throw away.</p>
+<p><strong>The mechanism.</strong> Before anything is drawn, the director doesn't produce pixels — it produces a
+<strong>shot plan</strong>: a small table describing each shot as <em>numbers and labels</em> (who the subject is, which
+side of the frame they're on, which way they face, the camera angle in degrees, the lens). Those
+numbers are all you need to <em>check</em> the rules, so a plain function — no AI, no rendering, just logic —
+reads the plan and flags anything that breaks film grammar:</p>
+<ul>
+<li><strong>establish-first</strong> — open on a wide shot before cutting to close-ups of a space;</li>
+<li><strong>the 180° line</strong> — a character who's on screen-left mustn't jump to screen-right between shots (or
+  the two people appear to swap seats);</li>
+<li><strong>eyeline match</strong> — if A looks screen-right at B, the reverse shot must frame B from the matching
+  side, so their gazes actually meet;</li>
+<li><strong>the 30° rule</strong> — move the camera at least 30° between two shots of the same subject, or the cut
+  looks like a glitchy "jump";</li>
+<li>plus a couple more (over-the-shoulder pairs shot at matching heights; one lens family per scene).</li>
+</ul>
+<p>Each thing it finds is tagged <strong>error</strong> (a real continuity break — must fix) or <strong>warning</strong> (a
+stylistic nudge — allowed). The plan is saved and sent to render <strong>only if there are zero errors</strong>.</p>
+<p>The reason to check the <em>numbers</em> first: reading a small table is instant and free (microseconds of
+CPU), while rendering a frame is slow and costs real GPU money. So you catch the mistake on the cheap
+artifact — the plan — instead of paying to generate a shot you'd only throw away.</p>
 <p><strong>Why deterministic.</strong> Continuity is <em>provable</em> — you can check the 180° line with arithmetic. Using
 an LLM for what a rule can prove is slower, costlier, and less reliable. Save the model's judgment for
 what is genuinely subjective.</p>

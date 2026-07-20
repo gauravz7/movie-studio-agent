@@ -75,11 +75,27 @@ actor looking the wrong way after a cut so two people seem to trade seats. This 
 taste; it is a set of rules professional script supervisors enforce on set precisely because they are
 easy, invisible mistakes to make.
 
-**The mechanism.** Encode them as a **deterministic validator** over the shot-plan JSON — pure logic,
-no I/O — and gate rendering on it: R7 establish-first, R1 180° line, R3 eyeline, R4 30° jump-cut, R14
-reciprocal OTS height, R19 lens consistency. The plan persists only with **zero error-severity
-violations** (warnings are allowed). The gate runs *before* a single frame renders, so a continuity
-mistake costs microseconds of CPU, not a GPU render you then throw away.
+**The mechanism.** Before anything is drawn, the director doesn't produce pixels — it produces a
+**shot plan**: a small table describing each shot as *numbers and labels* (who the subject is, which
+side of the frame they're on, which way they face, the camera angle in degrees, the lens). Those
+numbers are all you need to *check* the rules, so a plain function — no AI, no rendering, just logic —
+reads the plan and flags anything that breaks film grammar:
+
+- **establish-first** — open on a wide shot before cutting to close-ups of a space;
+- **the 180° line** — a character who's on screen-left mustn't jump to screen-right between shots (or
+  the two people appear to swap seats);
+- **eyeline match** — if A looks screen-right at B, the reverse shot must frame B from the matching
+  side, so their gazes actually meet;
+- **the 30° rule** — move the camera at least 30° between two shots of the same subject, or the cut
+  looks like a glitchy "jump";
+- plus a couple more (over-the-shoulder pairs shot at matching heights; one lens family per scene).
+
+Each thing it finds is tagged **error** (a real continuity break — must fix) or **warning** (a
+stylistic nudge — allowed). The plan is saved and sent to render **only if there are zero errors**.
+
+The reason to check the *numbers* first: reading a small table is instant and free (microseconds of
+CPU), while rendering a frame is slow and costs real GPU money. So you catch the mistake on the cheap
+artifact — the plan — instead of paying to generate a shot you'd only throw away.
 
 **Why deterministic.** Continuity is *provable* — you can check the 180° line with arithmetic. Using
 an LLM for what a rule can prove is slower, costlier, and less reliable. Save the model's judgment for

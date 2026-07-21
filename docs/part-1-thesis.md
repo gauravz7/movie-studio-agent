@@ -40,12 +40,13 @@ subtly different people, because it has no memory of the last frame and no oblig
 like a film where the lead is recast, slightly, in every scene. Every individual frame can be
 flawless and the movie still falls apart.
 
-![Three shots of one scene — the same two people, their dog, the garage set, wardrobe and light all consistent across the panels](media/choice-storyboard-3shot.png)
+![Three shots of one scene — the same people, their dog, wardrobe and warm light holding across every panel](media/choice-storyboard-s4.png)
 
 *The opposite of a blooper: three shots the studio produced for a single scene — the same couple and
-their dog, the same garage, the same wardrobe and light, consistent screen direction from panel to
-panel. This agreement between frames is precisely what a stand-alone render can't give you, and
-precisely what the rest of this series is about producing on purpose.*
+their dog, the same wardrobe, the same golden-hour light, consistent from panel to panel even as the
+framing moves from the kitchen out to the yard. This agreement between frames is precisely what a
+stand-alone render can't give you, and precisely what the rest of this series is about producing on
+purpose.*
 
 > **Improving the render function makes each frame better in isolation. It does nothing for the
 > constraint that they agree. That constraint is a systems problem, and systems problems are solved

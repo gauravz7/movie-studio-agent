@@ -189,6 +189,6 @@ the thousand around it — and that agreement, enforced by state the model never
 ---
 
 *Next: go one layer deeper into the two standards this whole studio is built on —
-**[Foundations: MCP and Skills](mcp-and-skills.md)** — how capability and craft compose, the protocol
+**[Foundations: MCP and Skills](index.md)** — how capability and craft compose, the protocol
 details, and the context economics. Or revisit **[Part 1 — the thesis](part-1-thesis.md)** ·
 **[Part 2 — the architecture](pre-production-barrier.md)**.*

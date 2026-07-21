@@ -118,4 +118,4 @@ with one.**
 
 ---
 
-*Built on a real MCP + Skills film-production pipeline. Foundations: **[MCP and Skills](mcp-and-skills.md)**.*
+*Built on a real MCP + Skills film-production pipeline. Foundations: **[MCP and Skills](index.md)**.*

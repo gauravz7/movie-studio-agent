@@ -313,4 +313,4 @@ runs once or N times.
 *Next: **[Part 3 — Consistency Is the Product](part-3-moat.md)** — the invariants that turn these
 fan-out artifacts into a film that agrees with itself, and the unit economics that follow. New here?
 Start from **[Part 1 — the thesis](part-1-thesis.md)** or the **[foundations: MCP and
-Skills](mcp-and-skills.md)**.*
+Skills](index.md)**.*

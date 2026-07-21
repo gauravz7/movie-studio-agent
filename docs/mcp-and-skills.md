@@ -101,13 +101,18 @@ render conditions on, never re-described from scratch:
 <figure><img src="media/choice-buddy.png" alt="Buddy reference sheet"><figcaption>Buddy</figcaption></figure>
 </div>
 
-**2. Craft (Skills) → capability (MCP).** "Shoot scene 1." The `film-director` skill decides the
-coverage and continuity (a wide, a close, the reverse; hold the eyeline); the agent then calls
-`generate_microshot` for the storyboard and `start_scene_video` to animate it.
+**2. Craft (Skills) → capability (MCP).** "Shoot the scene." The `film-director` skill decides the
+coverage and continuity (the beats, the shot order, hold the eyeline); the agent calls
+`generate_microshot` for the 3-panel storyboard, then `start_scene_video` to animate *that same
+storyboard* into the finished clip.
 
-![A 3-panel micro-shot storyboard — SHOT 1 / 2 / 3 of one scene, same cast and set across all three](media/choice-storyboard-3shot.png)
+![A 3-panel micro-shot storyboard — SHOT 1 / 2 / 3 of one scene, same cast and set across all three](media/choice-storyboard-s4.png)
 
-<video controls preload="metadata" src="media/choice-scene-1.mp4" style="width:100%"></video>
+*The storyboard first…*
+
+<video controls preload="metadata" src="media/choice-scene-4.mp4" style="width:100%"></video>
+
+*…then the very same scene, animated — one continuous pass from the panels above.*
 
 **3. The wiring.** Skills load *inside* the agent (no network); MCP tools are fetched from the server
 over the wire. Only small links cross back — the pixels are read on demand.

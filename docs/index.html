@@ -104,12 +104,15 @@ render conditions on, never re-described from scratch:</p>
 <figure><img src="media/choice-buddy.png" alt="Buddy reference sheet"><figcaption>Buddy</figcaption></figure>
 </div>
 
-<p><strong>2. Craft (Skills) → capability (MCP).</strong> "Shoot scene 1." The <code>film-director</code> skill decides the
-coverage and continuity (a wide, a close, the reverse; hold the eyeline); the agent then calls
-<code>generate_microshot</code> for the storyboard and <code>start_scene_video</code> to animate it.</p>
-<p><img alt="A 3-panel micro-shot storyboard — SHOT 1 / 2 / 3 of one scene, same cast and set across all three" src="media/choice-storyboard-3shot.png" /></p>
-<video controls preload="metadata" src="media/choice-scene-1.mp4" style="width:100%"></video>
+<p><strong>2. Craft (Skills) → capability (MCP).</strong> "Shoot the scene." The <code>film-director</code> skill decides the
+coverage and continuity (the beats, the shot order, hold the eyeline); the agent calls
+<code>generate_microshot</code> for the 3-panel storyboard, then <code>start_scene_video</code> to animate <em>that same
+storyboard</em> into the finished clip.</p>
+<p><img alt="A 3-panel micro-shot storyboard — SHOT 1 / 2 / 3 of one scene, same cast and set across all three" src="media/choice-storyboard-s4.png" /></p>
+<p><em>The storyboard first…</em></p>
+<video controls preload="metadata" src="media/choice-scene-4.mp4" style="width:100%"></video>
 
+<p><em>…then the very same scene, animated — one continuous pass from the panels above.</em></p>
 <p><strong>3. The wiring.</strong> Skills load <em>inside</em> the agent (no network); MCP tools are fetched from the server
 over the wire. Only small links cross back — the pixels are read on demand.</p>
 <p><img alt="The skill + MCP call path" src="media/seq-callpath.png" /></p>
